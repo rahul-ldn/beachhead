@@ -1,0 +1,235 @@
+# ~/.config/starship.toml — proposed for the owner's Macs, 2 November 2026 (fourth shape).
+# One line. Left: a rounded cap, then cells joined by chevrons (machine › path › git › tmux), the command typed
+# straight after. Right: the failure flag, a slow command's duration, the account pill, the clock pill.
+# Outside tmux a lobby line sits above: the sessions you could join, with their controllers. Inside tmux that line
+# is absent, because the status bar carries the room.
+#
+# Built the way the Pastel Powerline, Gruvbox Rainbow and Catppuccin Powerline presets are. The last cell of the
+# band closes with a chevron drawn by a small module that knows which cell is last, so an absent cell leaves no
+# sliver. Assumes FiraCode Nerd Font. Switch the look with `palette`: pastel, gruvbox or catppuccin.
+# The glyphs are '\ue0b0' (chevron), '\ue0b6' and '\ue0b4' (the caps), written by codepoint.
+
+"$schema" = 'https://starship.rs/config-schema.json'
+add_newline = true
+palette = 'gruvbox'
+
+format = """
+${custom.tmux_outside}\
+[](fg:head)\
+${custom.tunhithe}${custom.carrack}${custom.elsewhere}\
+$directory\
+$git_branch$git_commit$git_state$git_status\
+${custom.tmux_after_git}${custom.tmux_after_path}\
+${custom.close_after_git}${custom.close_after_path}\
+$jobs\
+$character"""
+right_format = '$status$cmd_duration${custom.account_a}${custom.account_b}$time'
+
+[palettes.pastel]       # Pastel Powerline's colours (M365Princess)
+head = '#9A348E'
+path = '#DA627D'
+git  = '#FCA17D'
+tmux = '#86BBD8'
+acct = '#06969A'
+acctb = '#7B5EA7'
+time = '#33658A'
+headtext = '#ffffff'
+pathtext = '#ffffff'
+gittext  = '#1e2127'
+tmuxtext = '#1e2127'
+accttext = '#ffffff'
+timetext = '#ffffff'
+dirty    = '#7a1f3d'
+lobby    = '#86BBD8'
+fail     = '#c0392b'
+
+[palettes.gruvbox]      # Gruvbox Rainbow's colours
+head = '#d65d0e'
+path = '#d79921'
+git  = '#689d6a'
+tmux = '#458588'
+acct = '#665c54'
+acctb = '#b16286'
+time = '#3c3836'
+headtext = '#fbf1c7'
+pathtext = '#fbf1c7'
+gittext  = '#fbf1c7'
+tmuxtext = '#fbf1c7'
+accttext = '#fbf1c7'
+timetext = '#fbf1c7'
+dirty    = '#fbf1c7'
+lobby    = '#83a598'
+fail     = '#cc241d'
+
+[palettes.catppuccin]   # Catppuccin Powerline's colours (Mocha)
+head = '#fab387'
+path = '#f9e2af'
+git  = '#a6e3a1'
+tmux = '#89b4fa'
+acct = '#94e2d5'
+acctb = '#cba6f7'
+time = '#313244'
+headtext = '#1e1e2e'
+pathtext = '#1e1e2e'
+gittext  = '#1e1e2e'
+tmuxtext = '#1e1e2e'
+accttext = '#1e1e2e'
+timetext = '#cdd6f4'
+dirty    = '#1e1e2e'
+lobby    = '#89b4fa'
+fail     = '#f38ba8'
+
+# ---- the lobby, outside tmux only: its own line above the band ----
+
+[custom.tmux_outside]
+shell   = ['/bin/sh']
+when    = 'test -z "$TMUX" && tmux list-sessions >/dev/null 2>&1'
+command = "$HOME/.local/bin/landingham-status --sessions"
+format  = "[  $output]($style)\n"
+style   = 'fg:lobby'
+
+# ---- the machine: the head of the band, with its own icon ----
+
+[custom.tunhithe]
+shell   = ['/bin/sh']
+when    = 'test "$(hostname -s)" = Tunhithe'
+command = 'echo Tunhithe'
+format  = '[󰍹 $output ]($style)[](fg:head bg:path)'
+style   = 'bold fg:headtext bg:head'
+
+[custom.carrack]
+shell   = ['/bin/sh']
+when    = 'test "$(hostname -s)" = Carrack'
+command = 'echo Carrack'
+format  = '[󰌢 $output ]($style)[](fg:head bg:path)'
+style   = 'bold fg:headtext bg:head'
+
+[custom.elsewhere]
+shell   = ['/bin/sh']
+when    = 'case "$(hostname -s)" in Tunhithe|Carrack) exit 1;; esac'
+command = 'hostname -s'
+format  = '[󰒍 $output ]($style)[](fg:head bg:path)'
+style   = 'bold fg:headtext bg:head'
+
+# ---- the path: one cell, the repository's root in bold, folders as icons by substitution ----
+# $before_root_style does not resolve in starship 1.27.0 (probed 2 November 2026), so the styles are named outright.
+
+[directory]
+format                 = '[  $path ]($style)[$read_only]($read_only_style)'
+style                  = 'fg:pathtext bg:path'
+read_only              = '󰌾 '
+read_only_style        = 'fg:pathtext bg:path'
+truncation_length      = 3
+truncate_to_repo       = false
+truncation_symbol      = '…/'
+repo_root_style        = 'bold fg:pathtext bg:path'
+repo_root_format       = '[  $before_root_path](fg:pathtext bg:path)[$repo_root](bold fg:pathtext bg:path)[$path ](fg:pathtext bg:path)[$read_only](fg:pathtext bg:path)'
+
+[directory.substitutions]
+'~/Claude/Projects/CRM' = ' CRM'
+'Documents' = '󰈙 '
+'Downloads' = ' '
+'Music'     = '󰝚 '
+'Pictures'  = ' '
+'Developer' = '󰲋 '
+
+# ---- git: one cell, entered from the path ----
+
+[git_branch]
+format            = '[](fg:path bg:git)[  $branch ]($style)'
+style             = 'bold fg:gittext bg:git'
+truncation_length = 48
+
+[git_commit]
+format        = '[$hash$tag ]($style)'
+style         = 'fg:gittext bg:git'
+only_detached = false
+tag_disabled  = false
+tag_symbol    = ' #'
+
+[git_state]
+format = '[\($state( $progress_current/$progress_total)\) ]($style)'
+style  = 'bold fg:dirty bg:git'
+
+[git_status]
+format     = '([$all_status$ahead_behind ]($style))'
+style      = 'bold fg:dirty bg:git'
+ahead      = '⇡${count}'
+behind     = '⇣${count}'
+diverged   = '⇕⇡${ahead_count}⇣${behind_count}'
+conflicted = '=${count}'
+untracked  = '?${count}'
+stashed    = '≡${count}'
+modified   = '!${count}'
+staged     = '+${count}'
+renamed    = '»${count}'
+deleted    = '✘${count}'
+
+# ---- tmux, inside only: the session and how many others; entered from git or from the path, and closing the band ----
+
+[custom.tmux_after_git]
+shell   = ['/bin/sh']
+when    = 'test -n "$TMUX" && git rev-parse --is-inside-work-tree >/dev/null 2>&1'
+command = 'n=$(tmux list-sessions 2>/dev/null | wc -l | tr -d " "); printf "%s" "$(tmux display-message -p "#S")"; [ "$n" -gt 1 ] && printf " +%s" "$((n-1))"'
+format  = '[](fg:git bg:tmux)[  $output ]($style)[](fg:tmux)'
+style   = 'fg:tmuxtext bg:tmux'
+
+[custom.tmux_after_path]
+shell   = ['/bin/sh']
+when    = 'test -n "$TMUX" && ! git rev-parse --is-inside-work-tree >/dev/null 2>&1'
+command = 'n=$(tmux list-sessions 2>/dev/null | wc -l | tr -d " "); printf "%s" "$(tmux display-message -p "#S")"; [ "$n" -gt 1 ] && printf " +%s" "$((n-1))"'
+format  = '[](fg:path bg:tmux)[  $output ]($style)[](fg:tmux)'
+style   = 'fg:tmuxtext bg:tmux'
+
+# ---- outside tmux the band ends at git or at the path: these draw that last chevron ----
+
+[custom.close_after_git]
+shell   = ['/bin/sh']
+when    = 'test -z "$TMUX" && git rev-parse --is-inside-work-tree >/dev/null 2>&1'
+format  = '[](fg:git)'
+
+[custom.close_after_path]
+shell   = ['/bin/sh']
+when    = 'test -z "$TMUX" && ! git rev-parse --is-inside-work-tree >/dev/null 2>&1'
+format  = '[](fg:path)'
+
+# ---- after the band: background jobs, then the prompt ----
+
+[jobs]
+symbol           = ''
+number_threshold = 1
+format           = ' [$symbol $number]($style)'
+
+[character]
+success_symbol = ' '
+error_symbol   = ' '
+
+# ---- the right-hand side: the failure flag, a slow command, the account a `claude` typed here would use, the clock ----
+
+[status]
+disabled = false
+format   = '[](fg:fail)[ $status ]($style)[](fg:fail) '
+style    = 'bold fg:#ffffff bg:fail'
+
+[cmd_duration]
+min_time = 2000
+format   = '[$duration]($style) '
+style    = 'fg:#999999'
+
+[custom.account_a]
+shell   = ['/bin/sh']
+when    = 'test -z "${CLAUDE_CONFIG_DIR:-}"'
+format  = '[](fg:acct)[󱚝 A]($style)[](fg:acct) '
+style   = 'bold fg:accttext bg:acct'
+
+[custom.account_b]
+shell   = ['/bin/sh']
+when    = 'case "${CLAUDE_CONFIG_DIR:-}" in *claude-b*) exit 0;; *) exit 1;; esac'
+format  = '[](fg:acctb)[󱚝 B]($style)[](fg:acctb) '
+style   = 'bold fg:accttext bg:acctb'
+
+[time]
+disabled    = false
+format      = '[](fg:time)[󰥔 $time]($style)[](fg:time)'
+time_format = '%H:%M'
+style       = 'fg:timetext bg:time'

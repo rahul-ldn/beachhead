@@ -1,0 +1,13 @@
+name: check
+on: [push, pull_request]
+jobs:
+  built-and-sound:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: every part's install.sh is built from its sources
+        run: |
+          for d in */; do [ -f "$d/build-installer.py" ] || continue; (cd "$d" && python3 build-installer.py); done
+          git diff --exit-code -- '*/install.sh'
+      - name: every part parses and dry-runs on Linux
+        run: for f in */install.sh; do bash -n "$f" && bash "$f" --dry-run --no-chsh --no-claude-statusline; done

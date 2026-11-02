@@ -1,0 +1,23 @@
+# .prompt-palette.toml — Landingham's colours for the shell prompt, picked up by the prompt hook whenever a shell
+# is inside this folder (worktrees included). The names follow docs/design/HOUSE-STYLE.md and the iOS colour sets:
+# verdigris and clay on parchment, moss for good news, crimson for trouble. Keep the table's keys as they are:
+# the prompt's cells are named by them.
+palette = 'landingham'
+
+[palettes.landingham]
+head  = '#1F6F63'   # verdigris: the machine
+path  = '#B4651C'   # clay: the path
+git   = '#4F7A43'   # moss: git
+tmux  = '#52A294'   # verdigris, dark appearance: the tmux room
+acct  = '#6E6960'   # muted: account A
+acctb = '#8C2B2B'   # crimson: account B
+time  = '#1F1B15'   # ink: the clock
+headtext = '#F1EDE4'
+pathtext = '#F1EDE4'
+gittext  = '#F1EDE4'
+tmuxtext = '#15120E'
+accttext = '#F1EDE4'
+timetext = '#F1EDE4'
+dirty    = '#F7EADC'
+lobby    = '#52A294'
+fail     = '#8C2B2B'

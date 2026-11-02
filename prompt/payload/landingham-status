@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+# landingham-status — one line about the controllers and the store, for the tmux status bar (every 30 s), for a
+# shell by hand, with --sessions for the prompt's lobby line outside tmux, and with --claude for Claude Code's own
+# status line. It reads only: tmux's pane titles and activity times, the lease files, and the store's baton
+# (`corpus baton`, a reading verb, cached for 60 s because Node takes half a second). On a machine without the
+# controllers, the leases or the store, those parts are simply absent.
+#
+#   A20 4m · B12+ 2h · baton B12 · heavy: B-12 records push · slots 1/4
+set -u
+# The machine's own particulars live in ~/.config/landingham-prompt/env, read here too because the tmux server's
+# environment is bare: LANDINGHAM_REPOSITORY (the checkout with the store's CLI) and LANDINGHAM_STORE (the store file).
+# Without them the baton is simply not shown.
+if [ -r "$HOME/.config/landingham-prompt/env" ]; then
+  while IFS= read -r l; do case "$l" in LANDINGHAM_*=*|PROCESS_*=*) export "$l";; esac; done < "$HOME/.config/landingham-prompt/env"
+fi
+tmux=$(command -v tmux 2>/dev/null || true)
+repo=${LANDINGHAM_REPOSITORY:-}
+store=${LANDINGHAM_STORE:-}
+cache=${TMPDIR:-/tmp}/landingham-baton-$(id -u)
+now=$(date +%s)
+mtime() { stat -f %m "$1" 2>/dev/null || stat -c %Y "$1" 2>/dev/null || echo 0; }
+ago() { local s=$(( now - $1 )); if [ "$s" -lt 60 ]; then echo "${s}s"; elif [ "$s" -lt 3600 ]; then echo "$(( s / 60 ))m"; elif [ "$s" -lt 86400 ]; then echo "$(( s / 3600 ))h"; else echo "$(( s / 86400 ))d"; fi; }
+short() {  # "✳ CRM Controller Tunhithe-A 20" -> A20
+  local l=$1; l=${l#✳ }; l=${l#CRM }; l=${l#Controller }; l=${l#Tunhithe-}; l=${l#Carrack-}; echo "${l// /}"
+}
+join() { local IFS='|'; local out="$*"; echo "${out//|/ · }"; }
+
+if [ "${1:-}" = --sessions ]; then
+  # The lobby: every tmux session you could join, who is in it (by the pane title Claude Code sets), and its last activity.
+  [ -n "$tmux" ] || exit 0
+  rooms=()
+  while IFS=$'\t' read -r s act att title; do
+    who=''; case "$title" in *Controller*) who="$(short "$title") ";; esac
+    mark=''; [ "${att:-0}" -gt 0 ] && mark='+'
+    rooms+=("${s}${mark}=${who}$(ago "$act")")
+  done < <("$tmux" list-panes -a -F $'#{session_name}\t#{session_activity}\t#{session_attached}\t#{pane_title}' 2>/dev/null)
+  [ ${#rooms[@]} -gt 0 ] && join "${rooms[@]}"
+  exit 0
+fi
+
+parts=()
+if [ -n "$tmux" ]; then
+  while IFS=$'\t' read -r s act att title; do
+    case "$title" in *Controller*) ;; *) continue;; esac
+    mark=''; [ "${att:-0}" -gt 0 ] && mark='+'
+    parts+=("$(short "$title")${mark} $(ago "$act")")
+  done < <("$tmux" list-panes -a -F $'#{session_name}\t#{session_activity}\t#{session_attached}\t#{pane_title}' 2>/dev/null)
+fi
+if [ -n "$store" ] && [ -f "$store" ] && [ -n "$repo" ] && [ -d "$repo" ] && command -v node >/dev/null; then
+  if [ ! -f "$cache" ] || [ $(( now - $(mtime "$cache") )) -gt 60 ]; then
+    ( cd "$repo" && node corpus/cli.mjs baton 2>/dev/null | sed -n 's/^  Holder: \(.*\) — session.*/\1/p' | head -1 > "$cache.new" )
+    if [ -s "$cache.new" ]; then mv "$cache.new" "$cache"; else rm -f "$cache.new" "$cache"; fi   # an empty answer is never cached
+  fi
+  holder=$(cat "$cache" 2>/dev/null); [ -n "$holder" ] && parts+=("baton $(short "$holder")")
+fi
+heavy=$HOME/satellite/leases/heavy
+if [ -f "$heavy" ]; then label=$(sed -n 's/.*"label":"\([^"]*\)".*/\1/p' "$heavy"); [ -n "$label" ] && parts+=("heavy: $label"); fi
+slots=$HOME/satellite/leases/agent-slots
+if [ -d "$slots" ]; then held=$(ls "$slots" 2>/dev/null | wc -l | tr -d ' '); parts+=("slots $held/${PROCESS_AGENT_SLOTS:-4}"); fi
+line=''; [ ${#parts[@]} -gt 0 ] && line=$(join "${parts[@]}")
+if [ "${1:-}" = --claude ]; then
+  head=$(python3 -c 'import json,sys,os
+d=json.load(sys.stdin); m=d.get("model",{}).get("display_name",""); w=d.get("workspace",{}).get("current_dir","")
+print(" · ".join(x for x in (m, os.path.basename(w)) if x))' 2>/dev/null)
+  echo "${head:+$head · }$line"
+else
+  echo "$line"
+fi
