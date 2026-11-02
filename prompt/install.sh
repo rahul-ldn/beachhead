@@ -431,7 +431,7 @@ LANDINGHAM_PAYLOAD_END
 
 payload_landingham_prompt_fish() {
 cat <<'LANDINGHAM_PAYLOAD_END'
-# ~/.config/fish/conf.d/landingham-prompt.fish — installed by landingham-prompt-install.sh. Nothing here prints.
+# ~/.config/fish/conf.d/landingham-prompt.fish — installed by beachhead's prompt installer. Nothing here prints.
 # Homebrew on a Mac, ~/.local/bin on every machine, the shared variables, then the prompt with its per-folder palette.
 if test -x /opt/homebrew/bin/brew
     /opt/homebrew/bin/brew shellenv | source
@@ -485,7 +485,7 @@ LANDINGHAM_PAYLOAD_END
 
 payload_tmux_conf() {
 cat <<'LANDINGHAM_PAYLOAD_END'
-# ~/.tmux.conf — installed by landingham-prompt-install.sh. The status bar is the one line always on screen, so it
+# ~/.tmux.conf — installed by beachhead's prompt installer. The status bar is the one line always on screen, so it
 # carries the room: this machine, this session, the controllers' activity, the baton and the leases (where they exist).
 # Every command is an absolute path, because the tmux server on Tunhithe is born under env -i.
 set -g default-terminal 'tmux-256color'

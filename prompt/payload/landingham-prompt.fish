@@ -1,4 +1,4 @@
-# ~/.config/fish/conf.d/landingham-prompt.fish — installed by landingham-prompt-install.sh. Nothing here prints.
+# ~/.config/fish/conf.d/landingham-prompt.fish — installed by beachhead's prompt installer. Nothing here prints.
 # Homebrew on a Mac, ~/.local/bin on every machine, the shared variables, then the prompt with its per-folder palette.
 if test -x /opt/homebrew/bin/brew
     /opt/homebrew/bin/brew shellenv | source
