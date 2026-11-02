@@ -31,12 +31,16 @@ re-login starts that way until the next `--save`. The same words work in fish, z
    checkout where it finds them (by their shape, never by name), for the baton in the status bar.
 4. **zsh and bash**, as marked blocks in `~/.zshrc`, `~/.bashrc` and `~/.bash_profile`, replaced in place on a re-run.
    The bash block's first half runs for every bash, Claude Code's included (it sources `~/.bashrc` at session start):
-   the paths and the variables, nothing that prints. The prompt comes after the interactive guard.
+   the paths and the variables, nothing that prints. The prompt comes after the interactive guard. The block goes at
+   the **top** of `.bashrc`, because a Debian user's stock `.bashrc` returns early for a non-interactive shell and the
+   block must come before that return.
 5. **Palettes**: the default, and the project's file at the checkout's root (`--project DIR`; a Mac's
    `~/Claude/Projects/CRM` when it exists).
 6. **Claude Code's status line** in `~/.claude/settings.json`, by a JSON merge, the old file kept.
-7. **fish as the login shell**, the one step that asks for the password (`/etc/shells`, then `chsh`). Piped with no
-   terminal at all, it is skipped and said.
+7. **fish as the login shell** (`/etc/shells`, then `chsh`). On a Mac this asks your password. On a server whose admin
+   user has passwordless sudo, which is how the household's is provisioned, `chsh` goes through sudo and asks nothing,
+   because `chsh` by itself asks for a password that user does not have. With neither a terminal nor free sudo it is
+   skipped and said.
 8. **The band printed live**, home and project, and the tally of checks, which is also appended to the part's record
    at `~/.config/beachhead/installed/prompt`: one line a run, with the build's digest.
 

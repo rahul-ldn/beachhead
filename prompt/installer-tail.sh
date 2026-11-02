@@ -141,7 +141,7 @@ if command -v starship >/dev/null; then
 fi
 BEOF
 install_block "$HOME/.zshrc" "$ZSH_BLOCK"
-install_block "$HOME/.bashrc" "$BASH_BLOCK"
+install_block "$HOME/.bashrc" "$BASH_BLOCK" top
 install_block "$HOME/.bash_profile" '[ -r ~/.bashrc ] && . ~/.bashrc'
 check "bash, sourced the way Claude Code sources it, carries CLAUDE_CODE_SHELL and finds the scripts" bash -c 'source ~/.bashrc; [ -n "$CLAUDE_CODE_SHELL" ] && command -v landingham-status >/dev/null'
 check "an interactive bash gets starship's prompt" bash -ic '[[ $PROMPT_COMMAND == *starship* ]]'
@@ -208,7 +208,14 @@ if [ $CHSH = 0 ]; then say "  skipped (--no-chsh); to do it later: chsh -s $FISH
 elif [ "$(basename "${SHELL:-}")" = fish ] || { [ $PLATFORM = mac ] && dscl . -read "/Users/$(id -un)" UserShell 2>/dev/null | grep -q fish; }; then say "  present: fish is already the login shell"
 else
   grep -qx "$FISH" /etc/shells 2>/dev/null || run $SUDO sh -c "echo '$FISH' >> /etc/shells"
-  say "  this asks for your password:"; run chsh -s "$FISH"
+  if [ $PLATFORM = linux ] && [ -n "$SUDO" ] && sudo -n true 2>/dev/null; then
+    say "  sudo asks nothing here, so chsh goes through it (chsh by itself would ask for a password this user may not have):"
+    run sudo chsh -s "$FISH" "$(id -un)"
+  elif [ $NOTTY = 1 ]; then
+    say "  skipped: no terminal to take a password; afterwards: chsh -s $FISH"; CHSH=0
+  else
+    say "  this asks for your password:"; run chsh -s "$FISH"
+  fi
 fi
 [ $CHSH = 1 ] && check "fish is the login shell" sh -c 'if [ "$(uname -s)" = Darwin ]; then dscl . -read "/Users/$(id -un)" UserShell | grep -q fish; else getent passwd "$(id -un)" | grep -q fish; fi'
 
@@ -231,5 +238,5 @@ return $FAIL
 # Piped from curl or gh, the script has no keyboard: hand the prompts /dev/tty; with no terminal at all, skip chsh.
 if [ -t 0 ]; then main "$@"
 elif ( : < /dev/tty ) 2>/dev/null; then main "$@" < /dev/tty
-else echo "no terminal: the login-shell step (chsh) will be skipped; run it yourself afterwards" >&2; main --no-chsh "$@"
+else BEACHHEAD_NOTTY=1 main "$@"
 fi

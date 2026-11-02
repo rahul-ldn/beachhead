@@ -31,7 +31,7 @@ main() {
 BEACHHEAD_BUILD=unbuilt   # build-installer.py fills this in: a digest of its sources
 STARSHIP_VERSION=v1.27.0
 STAMP=$(date +%Y%m%d-%H%M%S)
-DRY=0; PACKAGES=1; FONT=1; CHSH=1; STATUSLINE=1; PROJECT=''; DEFAULT_PALETTE=''
+DRY=0; PACKAGES=1; FONT=1; CHSH=1; STATUSLINE=1; PROJECT=''; DEFAULT_PALETTE=''; NOTTY=${BEACHHEAD_NOTTY:-0}
 while [ $# -gt 0 ]; do
   case "$1" in
     --dry-run) DRY=1;; --no-packages) PACKAGES=0;; --no-font) FONT=0;; --no-chsh) CHSH=0;; --no-claude-statusline) STATUSLINE=0;;
@@ -65,14 +65,21 @@ install_file() {  # install_file <payload function> <destination> [mode]
   mkdir -p "$(dirname "$dest")"; [ -f "$dest" ] && cp -p "$dest" "$dest.before-$STAMP"
   mv "$tmp" "$dest"; chmod "$mode" "$dest"
 }
-install_block() {  # install_block <rc file> <block text>: replaces the marked block, or appends it
-  local dest=$1 block=$2 begin='# >>> beachhead prompt >>>' end='# <<< beachhead prompt <<<' tmp; tmp=$(mktemp)
+install_block() {  # install_block <rc file> <block text> [top]: replaces the marked block, else appends it, or with
+  # "top" puts it first: a Debian user's default .bashrc returns early for a non-interactive shell, and Claude Code's
+  # tool sources .bashrc non-interactively, so the block must come before that return.
+  local dest=$1 block=$2 where=${3:-bottom} begin='# >>> beachhead prompt >>>' end='# <<< beachhead prompt <<<' tmp rest; tmp=$(mktemp); rest=$(mktemp)
   if [ -f "$dest" ] && grep -qF "$begin" "$dest"; then
-    awk -v b="$begin" -v e="$end" 'index($0,b)==1{skip=1} !skip{print} index($0,e)==1{skip=0}' "$dest" > "$tmp"
+    awk -v b="$begin" -v e="$end" 'index($0,b)==1{skip=1} !skip{print} index($0,e)==1{skip=0}' "$dest" > "$rest"
   else
-    [ -f "$dest" ] && cat "$dest" > "$tmp"
+    [ -f "$dest" ] && cat "$dest" > "$rest"
   fi
-  { [ -s "$tmp" ] && echo; printf '%s\n%s\n%s\n' "$begin" "$block" "$end"; } >> "$tmp"
+  if [ "$where" = top ]; then
+    { printf '%s\n%s\n%s\n' "$begin" "$block" "$end"; [ -s "$rest" ] && { echo; cat "$rest"; }; } > "$tmp"
+  else
+    { [ -s "$rest" ] && cat "$rest"; [ -s "$rest" ] && echo; printf '%s\n%s\n%s\n' "$begin" "$block" "$end"; } > "$tmp"
+  fi
+  rm -f "$rest"
   if [ -f "$dest" ] && cmp -s "$tmp" "$dest"; then say "  unchanged: $dest"; rm -f "$tmp"; return; fi
   say "  $( [ -f "$dest" ] && echo 'updating: ' || echo 'writing:  ') $dest (its landingham block)"
   if [ $DRY = 1 ]; then rm -f "$tmp"; return; fi
