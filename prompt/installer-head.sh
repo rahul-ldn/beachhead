@@ -28,6 +28,7 @@
 set -euo pipefail
 
 main() {
+BEACHHEAD_BUILD=unbuilt   # build-installer.py fills this in: the build's date and a digest of its sources
 STARSHIP_VERSION=v1.27.0
 STAMP=$(date +%Y%m%d-%H%M%S)
 DRY=0; PACKAGES=1; FONT=1; CHSH=1; STATUSLINE=1; PROJECT=''; DEFAULT_PALETTE=''
@@ -65,7 +66,7 @@ install_file() {  # install_file <payload function> <destination> [mode]
   mv "$tmp" "$dest"; chmod "$mode" "$dest"
 }
 install_block() {  # install_block <rc file> <block text>: replaces the marked block, or appends it
-  local dest=$1 block=$2 begin='# >>> landingham prompt >>>' end='# <<< landingham prompt <<<' tmp; tmp=$(mktemp)
+  local dest=$1 block=$2 begin='# >>> beachhead prompt >>>' end='# <<< beachhead prompt <<<' tmp; tmp=$(mktemp)
   if [ -f "$dest" ] && grep -qF "$begin" "$dest"; then
     awk -v b="$begin" -v e="$end" 'index($0,b)==1{skip=1} !skip{print} index($0,e)==1{skip=0}' "$dest" > "$tmp"
   else

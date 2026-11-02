@@ -1,28 +1,28 @@
-# ~/.config/fish/conf.d/landingham-prompt.fish — installed by beachhead's prompt installer. Nothing here prints.
+# ~/.config/fish/conf.d/beachhead.fish — installed by beachhead's prompt installer. Nothing here prints.
 # Homebrew on a Mac, ~/.local/bin on every machine, the shared variables, then the prompt with its per-folder palette.
 if test -x /opt/homebrew/bin/brew
     /opt/homebrew/bin/brew shellenv | source
 end
 fish_add_path --global --move ~/.local/bin
-if test -r ~/.config/landingham-prompt/env
-    for line in (string match -r '^[A-Za-z_][A-Za-z0-9_]*=.*' < ~/.config/landingham-prompt/env)
+if test -r ~/.config/beachhead/env
+    for line in (string match -r '^[A-Za-z_][A-Za-z0-9_]*=.*' < ~/.config/beachhead/env)
         set -l kv (string split -m1 = -- $line)
         set -gx $kv[1] (string trim -c '"' -- $kv[2])
     end
 end
 if status is-interactive; and command -q starship
-    function __landingham_prompt_palette --on-variable PWD
-        set -gx STARSHIP_CONFIG (landingham-prompt-palette)
+    function __beachhead_palette --on-variable PWD
+        set -gx STARSHIP_CONFIG (beachhead-palette)
     end
-    __landingham_prompt_palette
+    __beachhead_palette
     starship init fish | source
 end
 
 # `account a` or `account b`: the Claude account a `claude` typed in THIS shell uses (the prompt's pill follows at the
-# next prompt). With --save the choice is kept in ~/.config/landingham-prompt/env, so every new shell after a re-login
+# next prompt). With --save the choice is kept in ~/.config/beachhead/env, so every new shell after a re-login
 # starts that way until the next --save. `account` alone says which. B's folder is CLAUDE_CONFIG_DIR_B, else ~/.claude-b.
 function account --description 'the Claude account a `claude` typed here uses: account a|b [--save]'
-    set -l env ~/.config/landingham-prompt/env
+    set -l env ~/.config/beachhead/env
     set -l which $argv[1]; set -l save (contains -- --save $argv; and echo yes)
     switch "$which"
         case a A

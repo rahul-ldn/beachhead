@@ -1,8 +1,11 @@
-# Assembles landingham-prompt-install.sh: the installer's logic with every payload file embedded, so one file is the
+# Assembles install.sh: the installer's logic with every payload file embedded, so one file is the
 # whole install on any machine. Run it after changing anything in payload/.
 import os
-files=['starship.toml','landingham-status','landingham-prompt-palette','landingham-prompt.fish','tmux.conf','prompt-palette.toml']
-parts=[open('installer-head.sh',encoding='utf-8').read()]
+files=['starship.toml','landingham-status','beachhead-palette','beachhead.fish','tmux.conf','prompt-palette.toml']
+import hashlib, datetime
+digest=hashlib.sha256(b''.join(open(f,'rb').read() for f in ['installer-head.sh','installer-tail.sh']+['payload/'+f for f in files])).hexdigest()[:12]
+build=datetime.date.today().isoformat()+' '+digest   # the build is named by its date and a digest of its sources
+parts=[open('installer-head.sh',encoding='utf-8').read().replace('BEACHHEAD_BUILD=unbuilt','BEACHHEAD_BUILD=\''+build+'\'')]
 for f in files:
     body=open('payload/'+f,encoding='utf-8').read()
     assert 'LANDINGHAM_PAYLOAD_END' not in body

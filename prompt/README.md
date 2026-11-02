@@ -7,9 +7,9 @@
 | `install.sh` | The one file that is the whole install: the logic with every payload file embedded. Built from `installer-head.sh`, `payload/` and `installer-tail.sh` by `python3 build-installer.py`. It tells a Mac from a Linux server itself (Homebrew or apt; the font on a Mac only). Its header lists the options and what it never touches. |
 | `payload/starship.toml` | The prompt: one line, a rounded cap, cells joined by chevrons (machine › path › git › tmux), the command typed straight after; on the right the failure flag, a slow command's time, the Claude account (A teal, B violet), the clock. Outside tmux a lobby line above it lists the sessions you could join with their controllers; inside tmux the status bar carries that. Palettes: `gruvbox` (the default), `pastel`, `catppuccin`. Assumes FiraCode Nerd Font Mono. |
 | `payload/prompt-palette.toml` | A project's own colours, placed at a checkout's root as `.prompt-palette.toml`: inside it, worktrees included, the band wears them. This one is Landingham's (its house style's verdigris, clay, moss and crimson); any project may carry such a file. |
-| `payload/landingham-prompt-palette` | The hook each shell runs on a directory change: finds the nearest `.prompt-palette.toml` upwards, builds that palette's config once under `~/.cache/starship/`, and prints the path for `STARSHIP_CONFIG`. `--default <name>` changes the default palette. |
+| `payload/beachhead-palette` | The hook each shell runs on a directory change: finds the nearest `.prompt-palette.toml` upwards, builds that palette's config once under `~/.cache/starship/`, and prints the path for `STARSHIP_CONFIG`. `--default <name>` changes the default palette. |
 | `payload/landingham-status` | One line about the controllers (from the tmux pane titles Claude Code sets), the store's baton (cached 60 s; shown only where the environment file names the store), the heavy lease and the agent slots. Reads only. For the tmux status bar, the prompt's lobby line (`--sessions`) and Claude Code's status line (`--claude`). |
-| `payload/landingham-prompt.fish` | fish's drop-in (`~/.config/fish/conf.d/`): Homebrew on a Mac, `~/.local/bin`, the shared variables, the hook, starship, and `account`. |
+| `payload/beachhead.fish` | fish's drop-in (`~/.config/fish/conf.d/`): Homebrew on a Mac, `~/.local/bin`, the shared variables, the hook, starship, and `account`. |
 | `payload/tmux.conf` | The status bar: the machine, the session, the controllers' line, the clock. Absolute paths, because a tmux server may be born under `env -i`. |
 
 ## Switching the Claude account
@@ -25,10 +25,10 @@ re-login starts that way until the next `--save`. The same words work in fish, z
    cask. Debian or Ubuntu: `apt-get install fish tmux curl`, and starship from its GitHub release tarball into
    `~/.local/bin` with the published sha256 checked, never `curl | sh`.
 2. **The files** above, each replaced only when it differs, the old one kept with a dated suffix.
-3. **The environment file** `~/.config/landingham-prompt/env`: the one place for variables every shell on the machine
+3. **The environment file** `~/.config/beachhead/env`: the one place for variables every shell on the machine
    carries, never a secret, never overwritten. It seeds `CLAUDE_CODE_SHELL` with the modern bash, because Claude Code's
-   Bash tool accepts only bash or zsh, fish never, and this pins it whatever the login shell is. Two optional lines name
-   the process store and its checkout, for the baton in the status bar.
+   Bash tool accepts only bash or zsh, fish never, and this pins it whatever the login shell is. It also records the process store and its
+   checkout where it finds them (by their shape, never by name), for the baton in the status bar.
 4. **zsh and bash**, as marked blocks in `~/.zshrc`, `~/.bashrc` and `~/.bash_profile`, replaced in place on a re-run.
    The bash block's first half runs for every bash, Claude Code's included (it sources `~/.bashrc` at session start):
    the paths and the variables, nothing that prints. The prompt comes after the interactive guard.
@@ -37,7 +37,8 @@ re-login starts that way until the next `--save`. The same words work in fish, z
 6. **Claude Code's status line** in `~/.claude/settings.json`, by a JSON merge, the old file kept.
 7. **fish as the login shell**, the one step that asks for the password (`/etc/shells`, then `chsh`). Piped with no
    terminal at all, it is skipped and said.
-8. **The band printed live**, home and project, and the tally of checks.
+8. **The band printed live**, home and project, and the tally of checks, which is also appended to the part's record
+   at `~/.config/beachhead/installed/prompt`: one line a run, with the build's date and digest.
 
 ## What it never touches
 

@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# landingham-prompt-palette — which starship config a shell in this folder should use. Called by the shell on every
+# beachhead-palette — which starship config a shell in this folder should use. Called by the shell on every
 # directory change (fish --on-variable PWD, zsh chpwd, bash PROMPT_COMMAND); its one line of output is STARSHIP_CONFIG.
 #
 #   The template is ~/.config/starship/starship.toml; its `palette = '…'` line is the DEFAULT, used wherever no project
-#   says otherwise. Change the default by editing that line, or: landingham-prompt-palette --default gruvbox
+#   says otherwise. Change the default by editing that line, or: beachhead-palette --default gruvbox
 #   A project claims its colours with a `.prompt-palette.toml` at its root: a `palette = '<name>'` line and, if the
 #   template does not already define that name, a `[palettes.<name>]` table. The hook walks up from the current folder
 #   to the first such file, so a worktree inside the project inherits it, and builds the project's config once as
@@ -13,7 +13,7 @@ set -u
 template=${PROMPT_TEMPLATE:-$HOME/.config/starship/starship.toml}
 cache=${PROMPT_CACHE:-$HOME/.cache/starship}
 if [ "${1:-}" = --default ]; then
-  [ -n "${2:-}" ] || { echo 'usage: landingham-prompt-palette --default <palette>' >&2; exit 64; }
+  [ -n "${2:-}" ] || { echo 'usage: beachhead-palette --default <palette>' >&2; exit 64; }
   grep -q "^\[palettes\.$2\]" "$template" || { echo "the template defines no palette named $2" >&2; exit 65; }
   sed "s|^palette = .*|palette = '$2'|" "$template" > "$template.new" && mv "$template.new" "$template" && echo "default palette: $2"; exit
 fi

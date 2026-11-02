@@ -16,5 +16,11 @@ Every part ends each stage with its checks (✓/✗), and its exit status is the
 Parts to come: absorbing a new VPS (users, keys, the firewall, Docker, the backup's alarm), and whatever else a new
 machine needs before it can carry Landingham or another project.
 
+## On each machine
+
+`~/.config/beachhead/` is the parts' common ground: `env`, one file of the variables every shell on the machine
+carries, which every part reads and may add a line to but never rewrites; and `installed/<part>`, one line a run
+from each part, with the build it was and how its checks went. One file for what must agree, one record per part.
+
 Each part's `install.sh` is **built, never edited**: its sources are beside it, and `python3 build-installer.py`
 in the part's folder assembles the one file. The workflow refuses a push where a built file is stale.

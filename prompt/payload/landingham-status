@@ -7,11 +7,11 @@
 #
 #   A20 4m · B12+ 2h · baton B12 · heavy: B-12 records push · slots 1/4
 set -u
-# The machine's own particulars live in ~/.config/landingham-prompt/env, read here too because the tmux server's
+# The machine's own particulars live in ~/.config/beachhead/env, read here too because the tmux server's
 # environment is bare: LANDINGHAM_REPOSITORY (the checkout with the store's CLI) and LANDINGHAM_STORE (the store file).
 # Without them the baton is simply not shown.
-if [ -r "$HOME/.config/landingham-prompt/env" ]; then
-  while IFS= read -r l; do case "$l" in LANDINGHAM_*=*|PROCESS_*=*) export "$l";; esac; done < "$HOME/.config/landingham-prompt/env"
+if [ -r "$HOME/.config/beachhead/env" ]; then
+  while IFS= read -r l; do case "$l" in LANDINGHAM_*=*|PROCESS_*=*) export "$l";; esac; done < "$HOME/.config/beachhead/env"
 fi
 tmux=$(command -v tmux 2>/dev/null || true)
 repo=${LANDINGHAM_REPOSITORY:-}

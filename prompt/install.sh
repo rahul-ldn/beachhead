@@ -28,6 +28,7 @@
 set -euo pipefail
 
 main() {
+BEACHHEAD_BUILD='2026-11-02 94675e787b1d'   # build-installer.py fills this in: the build's date and a digest of its sources
 STARSHIP_VERSION=v1.27.0
 STAMP=$(date +%Y%m%d-%H%M%S)
 DRY=0; PACKAGES=1; FONT=1; CHSH=1; STATUSLINE=1; PROJECT=''; DEFAULT_PALETTE=''
@@ -65,7 +66,7 @@ install_file() {  # install_file <payload function> <destination> [mode]
   mv "$tmp" "$dest"; chmod "$mode" "$dest"
 }
 install_block() {  # install_block <rc file> <block text>: replaces the marked block, or appends it
-  local dest=$1 block=$2 begin='# >>> landingham prompt >>>' end='# <<< landingham prompt <<<' tmp; tmp=$(mktemp)
+  local dest=$1 block=$2 begin='# >>> beachhead prompt >>>' end='# <<< beachhead prompt <<<' tmp; tmp=$(mktemp)
   if [ -f "$dest" ] && grep -qF "$begin" "$dest"; then
     awk -v b="$begin" -v e="$end" 'index($0,b)==1{skip=1} !skip{print} index($0,e)==1{skip=0}' "$dest" > "$tmp"
   else
@@ -329,11 +330,11 @@ cat <<'LANDINGHAM_PAYLOAD_END'
 #
 #   A20 4m · B12+ 2h · baton B12 · heavy: B-12 records push · slots 1/4
 set -u
-# The machine's own particulars live in ~/.config/landingham-prompt/env, read here too because the tmux server's
+# The machine's own particulars live in ~/.config/beachhead/env, read here too because the tmux server's
 # environment is bare: LANDINGHAM_REPOSITORY (the checkout with the store's CLI) and LANDINGHAM_STORE (the store file).
 # Without them the baton is simply not shown.
-if [ -r "$HOME/.config/landingham-prompt/env" ]; then
-  while IFS= read -r l; do case "$l" in LANDINGHAM_*=*|PROCESS_*=*) export "$l";; esac; done < "$HOME/.config/landingham-prompt/env"
+if [ -r "$HOME/.config/beachhead/env" ]; then
+  while IFS= read -r l; do case "$l" in LANDINGHAM_*=*|PROCESS_*=*) export "$l";; esac; done < "$HOME/.config/beachhead/env"
 fi
 tmux=$(command -v tmux 2>/dev/null || true)
 repo=${LANDINGHAM_REPOSITORY:-}
@@ -391,14 +392,14 @@ fi
 LANDINGHAM_PAYLOAD_END
 }
 
-payload_landingham_prompt_palette() {
+payload_beachhead_palette() {
 cat <<'LANDINGHAM_PAYLOAD_END'
 #!/usr/bin/env bash
-# landingham-prompt-palette — which starship config a shell in this folder should use. Called by the shell on every
+# beachhead-palette — which starship config a shell in this folder should use. Called by the shell on every
 # directory change (fish --on-variable PWD, zsh chpwd, bash PROMPT_COMMAND); its one line of output is STARSHIP_CONFIG.
 #
 #   The template is ~/.config/starship/starship.toml; its `palette = '…'` line is the DEFAULT, used wherever no project
-#   says otherwise. Change the default by editing that line, or: landingham-prompt-palette --default gruvbox
+#   says otherwise. Change the default by editing that line, or: beachhead-palette --default gruvbox
 #   A project claims its colours with a `.prompt-palette.toml` at its root: a `palette = '<name>'` line and, if the
 #   template does not already define that name, a `[palettes.<name>]` table. The hook walks up from the current folder
 #   to the first such file, so a worktree inside the project inherits it, and builds the project's config once as
@@ -408,7 +409,7 @@ set -u
 template=${PROMPT_TEMPLATE:-$HOME/.config/starship/starship.toml}
 cache=${PROMPT_CACHE:-$HOME/.cache/starship}
 if [ "${1:-}" = --default ]; then
-  [ -n "${2:-}" ] || { echo 'usage: landingham-prompt-palette --default <palette>' >&2; exit 64; }
+  [ -n "${2:-}" ] || { echo 'usage: beachhead-palette --default <palette>' >&2; exit 64; }
   grep -q "^\[palettes\.$2\]" "$template" || { echo "the template defines no palette named $2" >&2; exit 65; }
   sed "s|^palette = .*|palette = '$2'|" "$template" > "$template.new" && mv "$template.new" "$template" && echo "default palette: $2"; exit
 fi
@@ -429,33 +430,33 @@ echo "$built"
 LANDINGHAM_PAYLOAD_END
 }
 
-payload_landingham_prompt_fish() {
+payload_beachhead_fish() {
 cat <<'LANDINGHAM_PAYLOAD_END'
-# ~/.config/fish/conf.d/landingham-prompt.fish — installed by beachhead's prompt installer. Nothing here prints.
+# ~/.config/fish/conf.d/beachhead.fish — installed by beachhead's prompt installer. Nothing here prints.
 # Homebrew on a Mac, ~/.local/bin on every machine, the shared variables, then the prompt with its per-folder palette.
 if test -x /opt/homebrew/bin/brew
     /opt/homebrew/bin/brew shellenv | source
 end
 fish_add_path --global --move ~/.local/bin
-if test -r ~/.config/landingham-prompt/env
-    for line in (string match -r '^[A-Za-z_][A-Za-z0-9_]*=.*' < ~/.config/landingham-prompt/env)
+if test -r ~/.config/beachhead/env
+    for line in (string match -r '^[A-Za-z_][A-Za-z0-9_]*=.*' < ~/.config/beachhead/env)
         set -l kv (string split -m1 = -- $line)
         set -gx $kv[1] (string trim -c '"' -- $kv[2])
     end
 end
 if status is-interactive; and command -q starship
-    function __landingham_prompt_palette --on-variable PWD
-        set -gx STARSHIP_CONFIG (landingham-prompt-palette)
+    function __beachhead_palette --on-variable PWD
+        set -gx STARSHIP_CONFIG (beachhead-palette)
     end
-    __landingham_prompt_palette
+    __beachhead_palette
     starship init fish | source
 end
 
 # `account a` or `account b`: the Claude account a `claude` typed in THIS shell uses (the prompt's pill follows at the
-# next prompt). With --save the choice is kept in ~/.config/landingham-prompt/env, so every new shell after a re-login
+# next prompt). With --save the choice is kept in ~/.config/beachhead/env, so every new shell after a re-login
 # starts that way until the next --save. `account` alone says which. B's folder is CLAUDE_CONFIG_DIR_B, else ~/.claude-b.
 function account --description 'the Claude account a `claude` typed here uses: account a|b [--save]'
-    set -l env ~/.config/landingham-prompt/env
+    set -l env ~/.config/beachhead/env
     set -l which $argv[1]; set -l save (contains -- --save $argv; and echo yes)
     switch "$which"
         case a A
@@ -570,38 +571,44 @@ check "tmux runs ($(command -v tmux >/dev/null && tmux -V || echo not found))" c
 step "the prompt's files"
 install_file payload_starship_toml "$HOME/.config/starship/starship.toml"
 install_file payload_landingham_status "$HOME/.local/bin/landingham-status" 755
-install_file payload_landingham_prompt_palette "$HOME/.local/bin/landingham-prompt-palette" 755
-install_file payload_landingham_prompt_fish "$HOME/.config/fish/conf.d/landingham-prompt.fish"
+install_file payload_beachhead_palette "$HOME/.local/bin/beachhead-palette" 755
+install_file payload_beachhead_fish "$HOME/.config/fish/conf.d/beachhead.fish"
 TMUX_BIN=$(command -v tmux 2>/dev/null || echo /opt/homebrew/bin/tmux)
 payload_tmux_conf_resolved() { payload_tmux_conf | sed -e "s|__HOME__|$HOME|g" -e "s|__TMUX__|$TMUX_BIN|g"; }
 install_file payload_tmux_conf_resolved "$HOME/.tmux.conf"
 check "the starship template loads without a warning" sh -c '[ -z "$(STARSHIP_CONFIG=$HOME/.config/starship/starship.toml starship prompt --terminal-width 80 2>&1 >/dev/null | grep WARN)" ]'
 check "landingham-status runs" "$HOME/.local/bin/landingham-status" --sessions
-check "landingham-prompt-palette answers from home" sh -c 'cd && [ -f "$("$HOME/.local/bin/landingham-prompt-palette")" ]'
+check "beachhead-palette answers from home" sh -c 'cd && [ -f "$("$HOME/.local/bin/beachhead-palette")" ]'
 check "the tmux conf parses (on a scratch server of its own)" sh -c '"$0" -L landingham-install-check -f "$HOME/.tmux.conf" new-session -d true 2>/dev/null; "$0" -L landingham-install-check kill-server 2>/dev/null; true' "$TMUX_BIN"
 
 # ---- 3. the shared environment file: the one place for variables every shell on this machine must carry ----
 step "the environment file"
-ENV_FILE=$HOME/.config/landingham-prompt/env
+[ -n "$PROJECT" ] || { [ -d "$HOME/Claude/Projects/CRM" ] && PROJECT=$HOME/Claude/Projects/CRM || true; }
+ENV_FILE=$HOME/.config/beachhead/env
 if [ $PLATFORM = mac ]; then MODERN_BASH=/opt/homebrew/bin/bash; else MODERN_BASH=$(command -v bash); fi
 if [ ! -f "$ENV_FILE" ]; then
   say "  writing:   $ENV_FILE"
   if [ $DRY = 0 ]; then mkdir -p "$(dirname "$ENV_FILE")"; cat > "$ENV_FILE" <<ENVEOF
-# ~/.config/landingham-prompt/env — variables every shell on this machine carries, one KEY=value a line, read by fish,
+# ~/.config/beachhead/env — variables every shell on this machine carries, one KEY=value a line, read by fish,
 # zsh and bash alike (beachhead's prompt installer wrote it; edit freely; it is never overwritten). Never a secret.
 # Claude Code's Bash tool runs bash, not the shell you type in: fish is not supported there, and this pins it.
 CLAUDE_CODE_SHELL=$MODERN_BASH
 # Where account B's Claude settings live, for `account b` (a shell function): the folder need not exist on every machine.
 CLAUDE_CONFIG_DIR_B=$HOME/.claude-b
-# Optional, on the machine that holds the process store: the checkout with its CLI, and the store file, for the
-# baton in the status bar. Without them the baton is not shown. (The tmux server reads this file too.)
-#LANDINGHAM_REPOSITORY=$HOME/Claude/Projects/CRM
-#LANDINGHAM_STORE=$HOME/Library/Application Support/<bundle id>/process/corpus.sqlite
 ENVEOF
   fi
 else
   say "  present:   $ENV_FILE (left as it is)"
   grep -q '^CLAUDE_CODE_SHELL=' "$ENV_FILE" || { say "  adding CLAUDE_CODE_SHELL=$MODERN_BASH to it"; [ $DRY = 0 ] && echo "CLAUDE_CODE_SHELL=$MODERN_BASH" >> "$ENV_FILE"; }
+fi
+# The process store and its checkout, for the baton in the status bar: found by their shape on this machine, never
+# named here. The checkout is the project folder when it carries the store's CLI; the store is the one corpus.sqlite
+# under the Mac's Application Support. Each line is added once, when absent, and never changed afterwards.
+env_add() { grep -q "^$1=" "$ENV_FILE" 2>/dev/null && say "  present:   $1" || { say "  adding:    $1=$2"; [ $DRY = 0 ] && printf '%s=%s\n' "$1" "$2" >> "$ENV_FILE"; }; }
+if [ -n "$PROJECT" ] && [ -f "$PROJECT/corpus/cli.mjs" ]; then env_add LANDINGHAM_REPOSITORY "$PROJECT"; fi
+if [ $PLATFORM = mac ]; then
+  stores=$(ls "$HOME/Library/Application Support"/*/process/corpus.sqlite 2>/dev/null | wc -l | tr -d ' ')
+  if [ "$stores" = 1 ]; then env_add LANDINGHAM_STORE "$(ls "$HOME/Library/Application Support"/*/process/corpus.sqlite)"; elif [ "$stores" != 0 ]; then say "  $stores process stores found under Application Support: name LANDINGHAM_STORE in $ENV_FILE yourself"; fi
 fi
 check "the pinned bash exists ($MODERN_BASH)" test -x "$MODERN_BASH"
 
@@ -613,11 +620,11 @@ read -r -d '' ZSH_BLOCK <<'ZEOF' || true
 [[ -x /opt/homebrew/bin/brew ]] && eval "$(/opt/homebrew/bin/brew shellenv)"
 [[ ":$PATH:" == *":$HOME/.local/bin:"* ]] || export PATH="$HOME/.local/bin:$PATH"
 HISTSIZE=50000; SAVEHIST=50000; setopt SHARE_HISTORY HIST_IGNORE_DUPS HIST_IGNORE_SPACE
-[[ -r ~/.config/landingham-prompt/env ]] && while IFS= read -r l; do [[ $l == [A-Za-z_]*=* ]] && export "$l"; done < ~/.config/landingham-prompt/env
+[[ -r ~/.config/beachhead/env ]] && while IFS= read -r l; do [[ $l == [A-Za-z_]*=* ]] && export "$l"; done < ~/.config/beachhead/env
 # `account a` / `account b` [--save]: the Claude account a `claude` typed in THIS shell uses; the prompt's pill follows.
-# --save keeps the choice in ~/.config/landingham-prompt/env, so every new shell after a re-login starts that way.
+# --save keeps the choice in ~/.config/beachhead/env, so every new shell after a re-login starts that way.
 account() {
-  local env="$HOME/.config/landingham-prompt/env" which="${1:-}" save=''
+  local env="$HOME/.config/beachhead/env" which="${1:-}" save=''
   case " $* " in *" --save "*) save=yes;; esac
   case "$which" in
     a|A) unset CLAUDE_CONFIG_DIR; echo 'claude: A (the default folder)';;
@@ -631,9 +638,9 @@ account() {
   fi
 }
 if command -v starship >/dev/null; then
-  landingham_prompt_palette() { export STARSHIP_CONFIG="$(landingham-prompt-palette)"; }
-  autoload -Uz add-zsh-hook && add-zsh-hook chpwd landingham_prompt_palette
-  landingham_prompt_palette
+  beachhead_palette() { export STARSHIP_CONFIG="$(beachhead-palette)"; }
+  autoload -Uz add-zsh-hook && add-zsh-hook chpwd beachhead_palette
+  beachhead_palette
   eval "$(starship init zsh)"
 fi
 ZEOF
@@ -642,15 +649,15 @@ read -r -d '' BASH_BLOCK <<'BEOF' || true
 # included (it sources this file at session start): the paths and the shared variables, and nothing that prints.
 [ -x /opt/homebrew/bin/brew ] && eval "$(/opt/homebrew/bin/brew shellenv)"
 case ":$PATH:" in *":$HOME/.local/bin:"*) ;; *) export PATH="$HOME/.local/bin:$PATH";; esac
-[ -r ~/.config/landingham-prompt/env ] && while IFS= read -r l; do case "$l" in [A-Za-z_]*=*) export "$l";; esac; done < ~/.config/landingham-prompt/env
+[ -r ~/.config/beachhead/env ] && while IFS= read -r l; do case "$l" in [A-Za-z_]*=*) export "$l";; esac; done < ~/.config/beachhead/env
 case $- in *i*) ;; *) return 0 2>/dev/null || true;; esac
 # from here on, the shell you type in
 export BASH_SILENCE_DEPRECATION_WARNING=1   # Apple's 3.2 bash nags about zsh otherwise
 HISTSIZE=50000; HISTFILESIZE=50000; HISTCONTROL=ignoreboth; shopt -s histappend checkwinsize
 # `account a` / `account b` [--save]: the Claude account a `claude` typed in THIS shell uses; the prompt's pill follows.
-# --save keeps the choice in ~/.config/landingham-prompt/env, so every new shell after a re-login starts that way.
+# --save keeps the choice in ~/.config/beachhead/env, so every new shell after a re-login starts that way.
 account() {
-  local env="$HOME/.config/landingham-prompt/env" which="${1:-}" save=''
+  local env="$HOME/.config/beachhead/env" which="${1:-}" save=''
   case " $* " in *" --save "*) save=yes;; esac
   case "$which" in
     a|A) unset CLAUDE_CONFIG_DIR; echo 'claude: A (the default folder)';;
@@ -664,8 +671,8 @@ account() {
   fi
 }
 if command -v starship >/dev/null; then
-  landingham_prompt_palette() { [ "${PWD}" = "${_LANDINGHAM_PWD:-}" ] || { export STARSHIP_CONFIG="$(landingham-prompt-palette)"; _LANDINGHAM_PWD=$PWD; }; }
-  PROMPT_COMMAND="landingham_prompt_palette${PROMPT_COMMAND:+;$PROMPT_COMMAND}"
+  beachhead_palette() { [ "${PWD}" = "${_LANDINGHAM_PWD:-}" ] || { export STARSHIP_CONFIG="$(beachhead-palette)"; _LANDINGHAM_PWD=$PWD; }; }
+  PROMPT_COMMAND="beachhead_palette${PROMPT_COMMAND:+;$PROMPT_COMMAND}"
   eval "$(starship init bash)"
 fi
 BEOF
@@ -699,13 +706,12 @@ rmdir "$HOME/.claude-b-check" 2>/dev/null; rm -rf "$ACCT_CHECK"
 # ---- 5. the default palette, and the project's own ----
 step "palettes"
 if [ -n "$DEFAULT_PALETTE" ]; then
-  if [ $DRY = 1 ]; then say "  would set the default palette to $DEFAULT_PALETTE"; else "$HOME/.local/bin/landingham-prompt-palette" --default "$DEFAULT_PALETTE" | sed 's/^/  /'; fi
-else say "  default palette: $(sed -n "s/^palette = '\(.*\)'/\1/p" "$HOME/.config/starship/starship.toml" 2>/dev/null || echo gruvbox) (change it: landingham-prompt-palette --default <name>)"; fi
-[ -n "$PROJECT" ] || { [ -d "$HOME/Claude/Projects/CRM" ] && PROJECT=$HOME/Claude/Projects/CRM || true; }
+  if [ $DRY = 1 ]; then say "  would set the default palette to $DEFAULT_PALETTE"; else "$HOME/.local/bin/beachhead-palette" --default "$DEFAULT_PALETTE" | sed 's/^/  /'; fi
+else say "  default palette: $(sed -n "s/^palette = '\(.*\)'/\1/p" "$HOME/.config/starship/starship.toml" 2>/dev/null || echo gruvbox) (change it: beachhead-palette --default <name>)"; fi
 if [ -n "$PROJECT" ]; then
   [ -d "$PROJECT" ] || { echo "no such project folder: $PROJECT" >&2; exit 66; }
   install_file payload_prompt_palette_toml "$PROJECT/.prompt-palette.toml"
-  check "inside $PROJECT the palette hook picks the project's own colours" sh -c 'cd "$0" && "$HOME/.local/bin/landingham-prompt-palette" | grep -q "/landingham.toml$"' "$PROJECT"
+  check "inside $PROJECT the palette hook picks the project's own colours" sh -c 'cd "$0" && "$HOME/.local/bin/beachhead-palette" | grep -q "/landingham.toml$"' "$PROJECT"
 else say "  no project folder found or named (--project DIR): no project palette placed"; fi
 
 # ---- 6. Claude Code's status line ----
@@ -747,11 +753,14 @@ step "finishing"
 if [ -n "$TMUX_BIN" ] && "$TMUX_BIN" list-sessions >/dev/null 2>&1; then run "$TMUX_BIN" source-file "$HOME/.tmux.conf"; fi
 if [ $DRY = 0 ] && command -v starship >/dev/null; then
   say "  the band, as it will look (home, then the project if there is one):"
-  ( cd && STARSHIP_CONFIG=$("$HOME/.local/bin/landingham-prompt-palette") starship prompt --terminal-width 120 2>/dev/null | sed 's/^/    /'; echo )
-  [ -n "$PROJECT" ] && ( cd "$PROJECT" && STARSHIP_CONFIG=$("$HOME/.local/bin/landingham-prompt-palette") starship prompt --terminal-width 120 2>/dev/null | sed 's/^/    /'; echo )
+  ( cd && STARSHIP_CONFIG=$("$HOME/.local/bin/beachhead-palette") starship prompt --terminal-width 120 2>/dev/null | sed 's/^/    /'; echo )
+  [ -n "$PROJECT" ] && ( cd "$PROJECT" && STARSHIP_CONFIG=$("$HOME/.local/bin/beachhead-palette") starship prompt --terminal-width 120 2>/dev/null | sed 's/^/    /'; echo )
 fi
+# The part's record, beside the shared environment file: what ran, when, which build, and how its checks went.
+# One line a run, newest last, so a later `beachhead doctor` can read every part's state from one folder.
+if [ $DRY = 0 ]; then mkdir -p "$HOME/.config/beachhead/installed"; printf '%s build %s on %s: %s checks passed, %s failed\n' "$(date '+%Y-%m-%d %H:%M')" "$BEACHHEAD_BUILD" "$PLATFORM" "$PASS" "$FAIL" >> "$HOME/.config/beachhead/installed/prompt"; fi
 say "  done: $PASS checks passed, $FAIL failed. Open a new terminal window$( [ $PLATFORM = mac ] && [ $FONT = 1 ] && echo ', set its font to FiraCode Nerd Font Mono,') and the band is there."
-say "  the default palette: landingham-prompt-palette --default <gruvbox|pastel|catppuccin>; a project's own: .prompt-palette.toml at its root."
+say "  the default palette: beachhead-palette --default <gruvbox|pastel|catppuccin>; a project's own: .prompt-palette.toml at its root."
 return $FAIL
 }
 
