@@ -15,6 +15,7 @@ palette = 'gruvbox'
 
 format = """
 ${custom.tmux_outside}\
+${custom.ops_outside}\
 [](fg:head)\
 ${custom.tunhithe}${custom.carrack}${custom.elsewhere}\
 $directory\
@@ -86,6 +87,15 @@ shell   = ['/bin/sh']
 when    = 'test -z "$TMUX" && tmux list-sessions >/dev/null 2>&1'
 command = "$HOME/.local/bin/landingham-status --sessions"
 format  = "[  $output]($style)\n"
+style   = 'fg:lobby'
+
+# ---- the stack, outside tmux only, on a machine that runs one: its own line above the band ----
+
+[custom.ops_outside]
+shell   = ['/bin/sh']
+when    = 'test -z "$TMUX" && command -v docker >/dev/null 2>&1 && [ -n "$($HOME/.local/bin/landingham-status --ops)" ]'
+command = "$HOME/.local/bin/landingham-status --ops"
+format  = "[󰡨  $output]($style)\n"
 style   = 'fg:lobby'
 
 # ---- the machine: the head of the band, with its own icon ----
@@ -218,13 +228,13 @@ style    = 'fg:#999999'
 
 [custom.account_a]
 shell   = ['/bin/sh']
-when    = 'test -z "${CLAUDE_CONFIG_DIR:-}"'
+when    = 'command -v claude >/dev/null 2>&1 && test -z "${CLAUDE_CONFIG_DIR:-}"'
 format  = '[](fg:acct)[󱚝 A]($style)[](fg:acct) '
 style   = 'bold fg:accttext bg:acct'
 
 [custom.account_b]
 shell   = ['/bin/sh']
-when    = 'case "${CLAUDE_CONFIG_DIR:-}" in *claude-b*) exit 0;; *) exit 1;; esac'
+when    = 'command -v claude >/dev/null 2>&1 && case "${CLAUDE_CONFIG_DIR:-}" in *claude-b*) exit 0;; *) exit 1;; esac'
 format  = '[](fg:acctb)[󱚝 B]($style)[](fg:acctb) '
 style   = 'bold fg:accttext bg:acctb'
 

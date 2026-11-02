@@ -28,7 +28,7 @@
 set -euo pipefail
 
 main() {
-BEACHHEAD_BUILD='028128027a5c'   # build-installer.py fills this in: a digest of its sources
+BEACHHEAD_BUILD='f27e08ed7ea0'   # build-installer.py fills this in: a digest of its sources
 STARSHIP_VERSION=v1.27.0
 STAMP=$(date +%Y%m%d-%H%M%S)
 DRY=0; PACKAGES=1; FONT=1; CHSH=1; STATUSLINE=1; PROJECT=''; DEFAULT_PALETTE=''; NOTTY=${BEACHHEAD_NOTTY:-0}
@@ -106,6 +106,7 @@ palette = 'gruvbox'
 
 format = """
 ${custom.tmux_outside}\
+${custom.ops_outside}\
 [](fg:head)\
 ${custom.tunhithe}${custom.carrack}${custom.elsewhere}\
 $directory\
@@ -177,6 +178,15 @@ shell   = ['/bin/sh']
 when    = 'test -z "$TMUX" && tmux list-sessions >/dev/null 2>&1'
 command = "$HOME/.local/bin/landingham-status --sessions"
 format  = "[  $output]($style)\n"
+style   = 'fg:lobby'
+
+# ---- the stack, outside tmux only, on a machine that runs one: its own line above the band ----
+
+[custom.ops_outside]
+shell   = ['/bin/sh']
+when    = 'test -z "$TMUX" && command -v docker >/dev/null 2>&1 && [ -n "$($HOME/.local/bin/landingham-status --ops)" ]'
+command = "$HOME/.local/bin/landingham-status --ops"
+format  = "[󰡨  $output]($style)\n"
 style   = 'fg:lobby'
 
 # ---- the machine: the head of the band, with its own icon ----
@@ -309,13 +319,13 @@ style    = 'fg:#999999'
 
 [custom.account_a]
 shell   = ['/bin/sh']
-when    = 'test -z "${CLAUDE_CONFIG_DIR:-}"'
+when    = 'command -v claude >/dev/null 2>&1 && test -z "${CLAUDE_CONFIG_DIR:-}"'
 format  = '[](fg:acct)[󱚝 A]($style)[](fg:acct) '
 style   = 'bold fg:accttext bg:acct'
 
 [custom.account_b]
 shell   = ['/bin/sh']
-when    = 'case "${CLAUDE_CONFIG_DIR:-}" in *claude-b*) exit 0;; *) exit 1;; esac'
+when    = 'command -v claude >/dev/null 2>&1 && case "${CLAUDE_CONFIG_DIR:-}" in *claude-b*) exit 0;; *) exit 1;; esac'
 format  = '[](fg:acctb)[󱚝 B]($style)[](fg:acctb) '
 style   = 'bold fg:accttext bg:acctb'
 
@@ -337,6 +347,14 @@ cat <<'LANDINGHAM_PAYLOAD_END'
 # controllers, the leases or the store, those parts are simply absent.
 #
 #   A20 4m · B12+ 2h · baton B12 · heavy: B-12 records push · slots 1/4
+#
+# On a machine that runs a Docker Compose stack (the server), the line is about the stack instead, with --ops alone
+# or folded into the default output: every service of every running project (✓ running and healthy, · a one-shot
+# that exited cleanly, ✗ anything else), the last backup from the state file the environment file names, the disk,
+# the load, the memory, and the host's own guards (docker, fail2ban, the unattended upgrades, any timer of ours), the
+# units named by BEACHHEAD_UNITS in the environment file. Found through Docker's and systemd's own listings, cached 30 s.
+#
+#   landingham: server✓ workers✓ caddy✓ postgres✓ fiderer✓ backup· migrate· · backup 03:12 812M off-site · disk 41% · load 0.3 · mem 62% free · docker✓ fail2ban✓ unattended-upgrades✓ landingham-watchdog✓
 set -u
 # The machine's own particulars live in ~/.config/beachhead/env, read here too because the tmux server's
 # environment is bare: LANDINGHAM_REPOSITORY (the checkout with the store's CLI) and LANDINGHAM_STORE (the store file).
@@ -355,7 +373,65 @@ short() {  # "✳ CRM Controller Tunhithe-A 20" -> A20
   local l=$1; l=${l#✳ }; l=${l#CRM }; l=${l#Controller }; l=${l#Tunhithe-}; l=${l#Carrack-}; echo "${l// /}"
 }
 join() { local IFS='|'; local out="$*"; echo "${out//|/ · }"; }
+ops_line() {
+  command -v docker >/dev/null 2>&1 || return 0
+  local c=${TMPDIR:-/tmp}/landingham-ops-$(id -u)
+  if [ ! -f "$c" ] || [ $(( now - $(mtime "$c") )) -gt 30 ]; then
+    python3 - > "$c.new" 2>/dev/null <<'PYEOF'
+import json, subprocess, os, time
+def run(*a):
+    try: return subprocess.run(a, capture_output=True, text=True, timeout=8).stdout
+    except Exception: return ''
+def rows(text):
+    text=text.strip()
+    if not text: return []
+    try:
+        d=json.loads(text); return d if isinstance(d,list) else [d]
+    except ValueError:
+        return [json.loads(l) for l in text.splitlines() if l.strip().startswith('{')]
+parts=[]
+for proj in rows(run('docker','compose','ls','--format','json')):
+    cfg=(proj.get('ConfigFiles') or '').split(',')[0]
+    if not cfg: continue
+    marks=[]
+    for svc in rows(run('docker','compose','-f',cfg,'ps','-a','--format','json')):
+        name=svc.get('Service') or svc.get('Name',''); state=(svc.get('State') or '').lower(); health=(svc.get('Health') or '').lower(); code=svc.get('ExitCode',0)
+        if state=='running' and health in ('','healthy'): m='\u2713'
+        elif state=='exited' and str(code)=='0': m='\u00b7'
+        else: m='\u2717'
+        marks.append(name+m)
+    parts.append(proj.get('Name','stack')+': '+' '.join(marks))
+st=os.environ.get('LANDINGHAM_BACKUP_STATE','')
+if st and os.path.isfile(os.path.join(st,'last-run')):
+    try:
+        f=open(os.path.join(st,'last-run')).read().split()   # <stamp> <size> off-site|local-only
+        stamp=f[0]; age=time.time()-time.mktime(time.strptime(stamp[:19],'%Y-%m-%dT%H:%M:%S'))
+        hhmm=stamp[11:16]; warn=' \u2717' if age>26*3600 or (len(f)>2 and f[2]!='off-site') else ''
+        parts.append('backup '+hhmm+' '+' '.join(f[1:3])+warn)
+    except Exception: parts.append('backup ?')
+try:
+    stv=os.statvfs('/'); used=100-int(stv.f_bavail*100/stv.f_blocks); parts.append('disk %d%%%s'%(used,' \u2717' if used>=85 else ''))
+except Exception: pass
+try: parts.append('load '+open('/proc/loadavg').read().split()[0])
+except Exception: pass
+try:
+    mi=dict((l.split(':')[0], int(l.split()[1])) for l in open('/proc/meminfo') if ':' in l)
+    free=int(mi['MemAvailable']*100/mi['MemTotal']); parts.append('mem %d%% free%s'%(free,' \u2717' if free<10 else ''))
+except Exception: pass
+units=os.environ.get('BEACHHEAD_UNITS','').split()   # the host's own guards, seeded by the installer: docker, fail2ban, the upgrades, any timer of ours
+if units and (os.path.exists('/bin/systemctl') or os.path.exists('/usr/bin/systemctl')):
+    marks=[]
+    for u in units:
+        a=run('systemctl','is-active',u).strip(); marks.append(u.replace('.service','').replace('.timer','')+('\u2713' if a=='active' else '\u2717'))
+    parts.append(' '.join(marks))
+print(' \u00b7 '.join(parts))
+PYEOF
+    if [ -s "$c.new" ]; then mv "$c.new" "$c"; else rm -f "$c.new" "$c"; fi
+  fi
+  [ -f "$c" ] && cat "$c"
+}
 
+if [ "${1:-}" = --ops ]; then ops_line; exit 0; fi
 if [ "${1:-}" = --sessions ]; then
   # The lobby: every tmux session you could join, who is in it (by the pane title Claude Code sets), and its last activity.
   [ -n "$tmux" ] || exit 0
@@ -388,6 +464,7 @@ heavy=$HOME/satellite/leases/heavy
 if [ -f "$heavy" ]; then label=$(sed -n 's/.*"label":"\([^"]*\)".*/\1/p' "$heavy"); [ -n "$label" ] && parts+=("heavy: $label"); fi
 slots=$HOME/satellite/leases/agent-slots
 if [ -d "$slots" ]; then held=$(ls "$slots" 2>/dev/null | wc -l | tr -d ' '); parts+=("slots $held/${PROCESS_AGENT_SLOTS:-4}"); fi
+ops=$(ops_line); [ -n "$ops" ] && parts+=("$ops")
 line=''; [ ${#parts[@]} -gt 0 ] && line=$(join "${parts[@]}")
 if [ "${1:-}" = --claude ]; then
   head=$(python3 -c 'import json,sys,os
@@ -618,6 +695,16 @@ fi
 # under the Mac's Application Support. Each line is added once, when absent, and never changed afterwards.
 env_add() { grep -q "^$1=" "$ENV_FILE" 2>/dev/null && say "  present:   $1" || { say "  adding:    $1=$2"; [ $DRY = 0 ] && printf '%s=%s\n' "$1" "$2" >> "$ENV_FILE"; }; }
 if [ -n "$PROJECT" ] && [ -f "$PROJECT/corpus/cli.mjs" ]; then env_add LANDINGHAM_REPOSITORY "$PROJECT"; fi
+if [ $PLATFORM = linux ] && command -v systemctl >/dev/null 2>&1; then
+  # the host's own guards, for the operations line: the standard ones that exist here, and every timer installed by hand
+  units=''; for u in docker fail2ban unattended-upgrades ssh; do systemctl list-unit-files "$u.service" 2>/dev/null | grep -q "^$u.service" && units="$units $u"; done
+  for f in /etc/systemd/system/*.timer; do [ -f "$f" ] && units="$units $(basename "$f")"; done
+  [ -n "$units" ] && env_add BEACHHEAD_UNITS "${units# }"
+fi
+if [ $PLATFORM = linux ] && command -v docker >/dev/null 2>&1 && docker ps >/dev/null 2>&1; then
+  bs=''; for id in $(docker ps -a -q 2>/dev/null); do m=$(docker inspect --format '{{range .Mounts}}{{if eq .Destination "/backup-state"}}{{.Source}}{{end}}{{end}}' "$id" 2>/dev/null); [ -n "$m" ] && { bs=$m; break; }; done
+  if [ -n "$bs" ]; then env_add LANDINGHAM_BACKUP_STATE "$bs"; else say "  no backup container with a /backup-state mount here: LANDINGHAM_BACKUP_STATE not set"; fi
+fi
 if [ $PLATFORM = mac ]; then
   found=''; n=0
   for f in "$HOME/Library/Application Support"/*/process/corpus.sqlite; do [ -f "$f" ] && { found=$f; n=$((n+1)); }; done

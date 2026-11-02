@@ -74,6 +74,16 @@ fi
 # under the Mac's Application Support. Each line is added once, when absent, and never changed afterwards.
 env_add() { grep -q "^$1=" "$ENV_FILE" 2>/dev/null && say "  present:   $1" || { say "  adding:    $1=$2"; [ $DRY = 0 ] && printf '%s=%s\n' "$1" "$2" >> "$ENV_FILE"; }; }
 if [ -n "$PROJECT" ] && [ -f "$PROJECT/corpus/cli.mjs" ]; then env_add LANDINGHAM_REPOSITORY "$PROJECT"; fi
+if [ $PLATFORM = linux ] && command -v systemctl >/dev/null 2>&1; then
+  # the host's own guards, for the operations line: the standard ones that exist here, and every timer installed by hand
+  units=''; for u in docker fail2ban unattended-upgrades ssh; do systemctl list-unit-files "$u.service" 2>/dev/null | grep -q "^$u.service" && units="$units $u"; done
+  for f in /etc/systemd/system/*.timer; do [ -f "$f" ] && units="$units $(basename "$f")"; done
+  [ -n "$units" ] && env_add BEACHHEAD_UNITS "${units# }"
+fi
+if [ $PLATFORM = linux ] && command -v docker >/dev/null 2>&1 && docker ps >/dev/null 2>&1; then
+  bs=''; for id in $(docker ps -a -q 2>/dev/null); do m=$(docker inspect --format '{{range .Mounts}}{{if eq .Destination "/backup-state"}}{{.Source}}{{end}}{{end}}' "$id" 2>/dev/null); [ -n "$m" ] && { bs=$m; break; }; done
+  if [ -n "$bs" ]; then env_add LANDINGHAM_BACKUP_STATE "$bs"; else say "  no backup container with a /backup-state mount here: LANDINGHAM_BACKUP_STATE not set"; fi
+fi
 if [ $PLATFORM = mac ]; then
   found=''; n=0
   for f in "$HOME/Library/Application Support"/*/process/corpus.sqlite; do [ -f "$f" ] && { found=$f; n=$((n+1)); }; done
