@@ -28,7 +28,7 @@
 set -euo pipefail
 
 main() {
-BEACHHEAD_BUILD='f98fff8222f3'   # build-installer.py fills this in: a digest of its sources
+BEACHHEAD_BUILD='8d7e3bbaea6a'   # build-installer.py fills this in: a digest of its sources
 STARSHIP_VERSION=v1.27.0
 STAMP=$(date +%Y%m%d-%H%M%S)
 DRY=0; PACKAGES=1; FONT=1; CHSH=1; STATUSLINE=1; PROJECT=''; DEFAULT_PALETTE=''; NOTTY=${BEACHHEAD_NOTTY:-0}
@@ -364,7 +364,7 @@ cat <<'LANDINGHAM_PAYLOAD_END'
 # (`corpus baton`, a reading verb, cached for 60 s because Node takes half a second). On a machine without the
 # controllers, the leases or the store, those parts are simply absent.
 #
-#   A20 4m · B12+ 2h · baton B12 · heavy: B-12 records push · lanes 1/4: 036i-fw-b-self-healing
+#   A=A19 5h · B=B12⚑ 2d · also A20 2d · heavy: B-12 records push · lanes 1/4: 036i-fw-b-self-healing
 #
 # On a machine that runs a Docker Compose stack (the server), the line is about the stack instead: --ops prints two
 # lines (the services, then the host's figures), --ops-services and --ops-host one each, for an 80-column prompt;
@@ -516,14 +516,7 @@ if [ "${1:-}" = --sessions ]; then
   exit 0
 fi
 
-parts=()
-if [ -n "$tmux" ]; then
-  while IFS=$'\t' read -r s act att title; do
-    case "$title" in *Controller*) ;; *) continue;; esac
-    mark=''; [ "${att:-0}" -gt 0 ] && mark='+'
-    parts+=("$(short "$title")${mark} $(ago "$act")")
-  done < <("$tmux" list-panes -a -F $'#{session_name}\t#{session_activity}\t#{session_attached}\t#{pane_title}' 2>/dev/null)
-fi
+parts=(); holder=''
 if [ -n "$store" ] && [ -f "$store" ] && [ -n "$repo" ] && [ -d "$repo" ] && command -v node >/dev/null; then
   if [ ! -f "$cache" ] || [ $(( now - $(mtime "$cache") )) -gt 60 ]; then
     if mkdir "$cache.lock" 2>/dev/null; then
@@ -532,7 +525,22 @@ if [ -n "$store" ] && [ -f "$store" ] && [ -n "$repo" ] && [ -d "$repo" ] && com
       rmdir "$cache.lock" 2>/dev/null
     fi
   fi
-  holder=$(cat "$cache" 2>/dev/null); [ -n "$holder" ] && parts+=("baton $(short "$holder")")
+  holder=$(short "$(cat "$cache" 2>/dev/null)")
+fi
+# The controllers, by account: the one in the account's standing session (controller-a, controller-b) comes first as
+# A=A20, any other controller session after by its label, ⚑ on the baton's holder, + where someone is attached, then
+# the time since the session last wrote to its screen.
+if [ -n "$tmux" ]; then
+  standing=(); others=()
+  while IFS=$'\t' read -r s act att title; do
+    case "$title" in *Controller*) ;; *) continue;; esac
+    lbl=$(short "$title"); mark=''; [ "$lbl" = "$holder" ] && mark='⚑'; [ "${att:-0}" -gt 0 ] && mark="$mark+"
+    case "$s" in controller-a) standing[0]="A=$lbl$mark $(ago "$act")";; controller-b) standing[1]="B=$lbl$mark $(ago "$act")";; *) others+=("$lbl$mark $(ago "$act")");; esac
+  done < <("$tmux" list-panes -a -F $'#{session_name}\t#{session_activity}\t#{session_attached}\t#{pane_title}' 2>/dev/null)
+  for x in "${standing[@]}"; do [ -n "$x" ] && parts+=("$x"); done
+  [ ${#others[@]} -gt 0 ] && parts+=("also ${others[*]}")
+  # a baton holder with no session of its own on this machine is still named
+  [ -n "$holder" ] && ! printf '%s\n' "${parts[@]}" | grep -q "$holder" && parts+=("baton $holder")
 fi
 heavy=$HOME/satellite/leases/heavy
 if [ -f "$heavy" ]; then label=$(sed -n 's/.*"label":"\([^"]*\)".*/\1/p' "$heavy"); [ -n "$label" ] && parts+=("heavy: $label"); fi
