@@ -20,7 +20,7 @@ machine needs before it can carry Landingham or another project.
 
 `~/.config/beachhead/` is the parts' common ground: `env`, one file of the variables every shell on the machine
 carries, which every part reads and may add a line to but never rewrites; and `installed/<part>`, one line a run
-from each part, with the build it was and how its checks went. One file for what must agree, one record per part.
+from each part, with the build it was (a digest of the sources) and how its checks went. One file for what must agree, one record per part.
 
 Each part's `install.sh` is **built, never edited**: its sources are beside it, and `python3 build-installer.py`
 in the part's folder assembles the one file. The workflow refuses a push where a built file is stale.

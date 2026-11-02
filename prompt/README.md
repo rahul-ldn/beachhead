@@ -38,7 +38,7 @@ re-login starts that way until the next `--save`. The same words work in fish, z
 7. **fish as the login shell**, the one step that asks for the password (`/etc/shells`, then `chsh`). Piped with no
    terminal at all, it is skipped and said.
 8. **The band printed live**, home and project, and the tally of checks, which is also appended to the part's record
-   at `~/.config/beachhead/installed/prompt`: one line a run, with the build's date and digest.
+   at `~/.config/beachhead/installed/prompt`: one line a run, with the build's digest.
 
 ## What it never touches
 

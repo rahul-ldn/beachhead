@@ -2,9 +2,9 @@
 # whole install on any machine. Run it after changing anything in payload/.
 import os
 files=['starship.toml','landingham-status','beachhead-palette','beachhead.fish','tmux.conf','prompt-palette.toml']
-import hashlib, datetime
+import hashlib
 digest=hashlib.sha256(b''.join(open(f,'rb').read() for f in ['installer-head.sh','installer-tail.sh']+['payload/'+f for f in files])).hexdigest()[:12]
-build=datetime.date.today().isoformat()+' '+digest   # the build is named by its date and a digest of its sources
+build=digest   # the build is named by a digest of its sources, so a rebuild anywhere gives the same file
 parts=[open('installer-head.sh',encoding='utf-8').read().replace('BEACHHEAD_BUILD=unbuilt','BEACHHEAD_BUILD=\''+build+'\'')]
 for f in files:
     body=open('payload/'+f,encoding='utf-8').read()
