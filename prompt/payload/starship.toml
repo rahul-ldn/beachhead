@@ -15,7 +15,8 @@ palette = 'gruvbox'
 
 format = """
 ${custom.tmux_outside}\
-${custom.ops_outside}\
+${custom.ops_services}\
+${custom.ops_host}\
 [](fg:head)\
 ${custom.tunhithe}${custom.carrack}${custom.elsewhere}\
 $directory\
@@ -89,13 +90,20 @@ command = "$HOME/.local/bin/landingham-status --sessions"
 format  = "[  $output]($style)\n"
 style   = 'fg:lobby'
 
-# ---- the stack, outside tmux only, on a machine that runs one: its own line above the band ----
+# ---- the stack, outside tmux only, on a machine that runs one: two lines above the band, for an 80-column window ----
 
-[custom.ops_outside]
+[custom.ops_services]
 shell   = ['/bin/sh']
-when    = 'test -z "$TMUX" && command -v docker >/dev/null 2>&1 && [ -n "$($HOME/.local/bin/landingham-status --ops)" ]'
-command = "$HOME/.local/bin/landingham-status --ops"
+when    = 'test -z "$TMUX" && command -v docker >/dev/null 2>&1 && [ -n "$($HOME/.local/bin/landingham-status --ops-services)" ]'
+command = "$HOME/.local/bin/landingham-status --ops-services"
 format  = "[󰡨  $output]($style)\n"
+style   = 'fg:lobby'
+
+[custom.ops_host]
+shell   = ['/bin/sh']
+when    = 'test -z "$TMUX" && command -v docker >/dev/null 2>&1 && [ -n "$($HOME/.local/bin/landingham-status --ops-host)" ]'
+command = "$HOME/.local/bin/landingham-status --ops-host"
+format  = "[   $output]($style)\n"
 style   = 'fg:lobby'
 
 # ---- the machine: the head of the band, with its own icon ----

@@ -28,7 +28,7 @@
 set -euo pipefail
 
 main() {
-BEACHHEAD_BUILD='32c5d537f9aa'   # build-installer.py fills this in: a digest of its sources
+BEACHHEAD_BUILD='ca9e56b86eb9'   # build-installer.py fills this in: a digest of its sources
 STARSHIP_VERSION=v1.27.0
 STAMP=$(date +%Y%m%d-%H%M%S)
 DRY=0; PACKAGES=1; FONT=1; CHSH=1; STATUSLINE=1; PROJECT=''; DEFAULT_PALETTE=''; NOTTY=${BEACHHEAD_NOTTY:-0}
@@ -106,7 +106,8 @@ palette = 'gruvbox'
 
 format = """
 ${custom.tmux_outside}\
-${custom.ops_outside}\
+${custom.ops_services}\
+${custom.ops_host}\
 [](fg:head)\
 ${custom.tunhithe}${custom.carrack}${custom.elsewhere}\
 $directory\
@@ -180,13 +181,20 @@ command = "$HOME/.local/bin/landingham-status --sessions"
 format  = "[  $output]($style)\n"
 style   = 'fg:lobby'
 
-# ---- the stack, outside tmux only, on a machine that runs one: its own line above the band ----
+# ---- the stack, outside tmux only, on a machine that runs one: two lines above the band, for an 80-column window ----
 
-[custom.ops_outside]
+[custom.ops_services]
 shell   = ['/bin/sh']
-when    = 'test -z "$TMUX" && command -v docker >/dev/null 2>&1 && [ -n "$($HOME/.local/bin/landingham-status --ops)" ]'
-command = "$HOME/.local/bin/landingham-status --ops"
+when    = 'test -z "$TMUX" && command -v docker >/dev/null 2>&1 && [ -n "$($HOME/.local/bin/landingham-status --ops-services)" ]'
+command = "$HOME/.local/bin/landingham-status --ops-services"
 format  = "[󰡨  $output]($style)\n"
+style   = 'fg:lobby'
+
+[custom.ops_host]
+shell   = ['/bin/sh']
+when    = 'test -z "$TMUX" && command -v docker >/dev/null 2>&1 && [ -n "$($HOME/.local/bin/landingham-status --ops-host)" ]'
+command = "$HOME/.local/bin/landingham-status --ops-host"
+format  = "[   $output]($style)\n"
 style   = 'fg:lobby'
 
 # ---- the machine: the head of the band, with its own icon ----
@@ -348,8 +356,9 @@ cat <<'LANDINGHAM_PAYLOAD_END'
 #
 #   A20 4m · B12+ 2h · baton B12 · heavy: B-12 records push · slots 1/4
 #
-# On a machine that runs a Docker Compose stack (the server), the line is about the stack instead, with --ops alone
-# or folded into the default output: every service of every running project (✓ running and healthy, · a one-shot
+# On a machine that runs a Docker Compose stack (the server), the line is about the stack instead: --ops prints two
+# lines (the services, then the host's figures), --ops-services and --ops-host one each, for an 80-column prompt;
+# the default output folds both into the one line the tmux bar shows: every service of every running project (✓ running and healthy, · a one-shot
 # that exited cleanly, ✗ anything else), the last backup from the state file the environment file names, the disk,
 # the load, the memory, and the host's own guards (docker, fail2ban, the unattended upgrades, any timer of ours), the
 # units named by BEACHHEAD_UNITS in the environment file. Found through Docker's and systemd's own listings, cached 30 s.
@@ -391,7 +400,7 @@ def rows(text):
         d=json.loads(text); return d if isinstance(d,list) else [d]
     except ValueError:
         return [json.loads(l) for l in text.splitlines() if l.strip().startswith('{')]
-parts=[]
+parts=[]; projects=[]
 for proj in rows(run('docker','compose','ls','--format','json')):
     cfg=(proj.get('ConfigFiles') or '').split(',')[0]
     if not cfg: continue
@@ -402,7 +411,7 @@ for proj in rows(run('docker','compose','ls','--format','json')):
         elif state=='exited' and str(code)=='0': m='\u00b7'
         else: m='\u2717'
         marks.append(name+m)
-    parts.append(proj.get('Name','stack')+': '+' '.join(marks))
+    projects.append(proj.get('Name','stack')+': '+' '.join(marks))
 st=os.environ.get('LANDINGHAM_BACKUP_STATE','')
 if st and os.path.isfile(os.path.join(st,'last-run')):
     try:
@@ -426,14 +435,20 @@ if units and (os.path.exists('/bin/systemctl') or os.path.exists('/usr/bin/syste
     for u in units:
         a=run('systemctl','is-active',u).strip(); marks.append(u.replace('.service','').replace('.timer','')+('\u2713' if a=='active' else '\u2717'))
     parts.append(' '.join(marks))
-print(' \u00b7 '.join(parts))
+print(' \u00b7 '.join(projects)); print(' \u00b7 '.join(parts))
 PYEOF
     if [ -s "$c.new" ]; then mv "$c.new" "$c"; else rm -f "$c.new" "$c"; fi
   fi
   [ -f "$c" ] && cat "$c"
 }
+ops_services() { ops_line | sed -n 1p; }
+ops_host()     { ops_line | sed -n 2p; }
 
-if [ "${1:-}" = --ops ]; then ops_line; exit 0; fi
+case "${1:-}" in
+  --ops) ops_line | sed '/^$/d'; exit 0;;            # two lines: the services, then the host's figures
+  --ops-services) ops_services; exit 0;;
+  --ops-host) ops_host; exit 0;;
+esac
 if [ "${1:-}" = --sessions ]; then
   # The lobby: every tmux session you could join, who is in it (by the pane title Claude Code sets), and its last activity.
   [ -n "$tmux" ] || exit 0
@@ -466,7 +481,7 @@ heavy=$HOME/satellite/leases/heavy
 if [ -f "$heavy" ]; then label=$(sed -n 's/.*"label":"\([^"]*\)".*/\1/p' "$heavy"); [ -n "$label" ] && parts+=("heavy: $label"); fi
 slots=$HOME/satellite/leases/agent-slots
 if [ -d "$slots" ]; then held=$(ls "$slots" 2>/dev/null | wc -l | tr -d ' '); parts+=("slots $held/${PROCESS_AGENT_SLOTS:-4}"); fi
-ops=$(ops_line); [ -n "$ops" ] && parts+=("$ops")
+o1=$(ops_services); [ -n "$o1" ] && parts+=("$o1"); o2=$(ops_host); [ -n "$o2" ] && parts+=("$o2")
 line=''; [ ${#parts[@]} -gt 0 ] && line=$(join "${parts[@]}")
 if [ "${1:-}" = --claude ]; then
   head=$(python3 -c 'import json,sys,os
