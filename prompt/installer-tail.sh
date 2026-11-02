@@ -3,12 +3,16 @@ step "packages"
 if [ $PACKAGES = 0 ]; then say "  skipped (--no-packages)"
 elif [ $PLATFORM = mac ]; then
   [ -n "$HOMEBREW" ] || { echo "Homebrew is not installed; install it first (https://brew.sh), then run this again." >&2; exit 66; }
-  for f in starship fish bash tmux; do "$HOMEBREW" list --formula "$f" >/dev/null 2>&1 && say "  present: $f" || run "$HOMEBREW" install "$f"; done
-  if [ $FONT = 1 ]; then "$HOMEBREW" list --cask font-fira-code-nerd-font >/dev/null 2>&1 && say "  present: font-fira-code-nerd-font" || run "$HOMEBREW" install --cask font-fira-code-nerd-font; fi
+  for f in starship fish bash tmux; do "$HOMEBREW" list --formula "$f" >/dev/null 2>&1 && say "  present: $f" || soft "$HOMEBREW" install "$f"; done
+  if [ $FONT = 1 ]; then
+    if ls "$HOME/Library/Fonts/FiraCodeNerdFontMono-Regular.ttf" /Library/Fonts/FiraCodeNerdFontMono-Regular.ttf >/dev/null 2>&1; then say "  present: FiraCode Nerd Font Mono (the font files are in place; the cask is not needed)"
+    elif "$HOMEBREW" list --cask font-fira-code-nerd-font >/dev/null 2>&1; then say "  present: font-fira-code-nerd-font"
+    else soft "$HOMEBREW" install --cask font-fira-code-nerd-font; fi
+  fi
 else
   if command -v apt-get >/dev/null; then
     missing=''; for p in fish tmux curl ca-certificates; do dpkg -s "$p" >/dev/null 2>&1 || missing="$missing $p"; done
-    if [ -n "$missing" ]; then run $SUDO apt-get update -qq; run $SUDO apt-get install -y -qq $missing; else say "  present: fish tmux curl"; fi
+    if [ -n "$missing" ]; then soft $SUDO apt-get update -qq; soft $SUDO apt-get install -y -qq $missing; else say "  present: fish tmux curl"; fi
   else
     say "  no apt-get here: install fish and tmux yourself; starship still comes from its release tarball"
   fi

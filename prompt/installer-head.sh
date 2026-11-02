@@ -49,6 +49,7 @@ check() {  # check "<what>" <command…>: runs the command quietly and reports �
   if "$@" >/dev/null 2>&1; then PASS=$((PASS+1)); printf '  \033[32m✓\033[0m %s\n' "$what"; else FAIL=$((FAIL+1)); printf '  \033[31m✗\033[0m %s\n' "$what"; fi
 }
 run()  { if [ $DRY = 1 ]; then say "  would run: $*"; else say "  running: $*"; "$@"; fi; }
+soft() { if [ $DRY = 1 ]; then say "  would run: $*"; else say "  running: $*"; "$@" || say "  (that failed; carrying on, the checks below will say what is missing)"; fi; }
 OS=$(uname -s); ARCH=$(uname -m)
 case "$OS" in Darwin) PLATFORM=mac;; Linux) PLATFORM=linux;; *) echo "unsupported system: $OS" >&2; exit 65;; esac
 SUDO=''; [ "$(id -u)" = 0 ] || SUDO=sudo
