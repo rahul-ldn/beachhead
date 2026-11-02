@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# landingham-prompt-install.sh — one command sets up the command line on one of the owner's machines: the shell prompt
+# install.sh — one command sets up the command line on one of the owner's machines: the shell prompt
 # (starship, in the chevron-band shape agreed on 2 November 2026), fish as the shell typed in, the per-folder palette
 # hook, the tmux status bar, the status script, the shared environment file, Claude Code's status line, and the Nerd
 # Font on a Mac. The same file serves a Mac (Homebrew) and the VPS (Debian or Ubuntu, apt; starship from its signed
 # release tarball into ~/.local/bin, never `curl | sh`). Every payload file is embedded below, so the one file is the
 # whole install; the sources are in tools/ops/prompt/payload/ and build-installer.py assembles this file from them.
 #
-#   bash landingham-prompt-install.sh [--dry-run] [--no-packages] [--no-font] [--no-chsh] [--no-claude-statusline]
-#                                     [--project DIR] [--default PALETTE]
+#   bash install.sh [--dry-run] [--no-packages] [--no-font] [--no-chsh] [--no-claude-statusline]
+#                   [--project DIR] [--default PALETTE]
 #   … or piped, the one command on any machine, from where GitHub Pages serves this file:
 #   curl -fsSL https://rahul-ldn.github.io/beachhead/prompt/install.sh | bash            (any option: … | bash -s -- --dry-run)
 #   Piped, the script has no keyboard, so it reads sudo's and chsh's prompts from /dev/tty; with no terminal at all
@@ -52,7 +52,7 @@ OS=$(uname -s); ARCH=$(uname -m)
 case "$OS" in Darwin) PLATFORM=mac;; Linux) PLATFORM=linux;; *) echo "unsupported system: $OS" >&2; exit 65;; esac
 SUDO=''; [ "$(id -u)" = 0 ] || SUDO=sudo
 HOMEBREW=''; for b in /opt/homebrew/bin/brew /usr/local/bin/brew; do [ -x $b ] && HOMEBREW=$b && break; done
-say "landingham-prompt-install: $PLATFORM ($ARCH), user $(id -un), home $HOME$( [ $DRY = 1 ] && echo ', DRY RUN')"
+say "beachhead prompt: $PLATFORM ($ARCH), user $(id -un), home $HOME$( [ $DRY = 1 ] && echo ', DRY RUN')"
 
 # ---- writing files: never silently over something that is not ours ----
 install_file() {  # install_file <payload function> <destination> [mode]

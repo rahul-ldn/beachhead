@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# landingham-prompt-install.sh — one command sets up the command line on one of the owner's machines: the shell prompt
+# install.sh — one command sets up the command line on one of the owner's machines: the shell prompt
 # (starship, in the chevron-band shape agreed on 2 November 2026), fish as the shell typed in, the per-folder palette
 # hook, the tmux status bar, the status script, the shared environment file, Claude Code's status line, and the Nerd
 # Font on a Mac. The same file serves a Mac (Homebrew) and the VPS (Debian or Ubuntu, apt; starship from its signed
 # release tarball into ~/.local/bin, never `curl | sh`). Every payload file is embedded below, so the one file is the
 # whole install; the sources are in tools/ops/prompt/payload/ and build-installer.py assembles this file from them.
 #
-#   bash landingham-prompt-install.sh [--dry-run] [--no-packages] [--no-font] [--no-chsh] [--no-claude-statusline]
-#                                     [--project DIR] [--default PALETTE]
+#   bash install.sh [--dry-run] [--no-packages] [--no-font] [--no-chsh] [--no-claude-statusline]
+#                   [--project DIR] [--default PALETTE]
 #   … or piped, the one command on any machine, from where GitHub Pages serves this file:
 #   curl -fsSL https://rahul-ldn.github.io/beachhead/prompt/install.sh | bash            (any option: … | bash -s -- --dry-run)
 #   Piped, the script has no keyboard, so it reads sudo's and chsh's prompts from /dev/tty; with no terminal at all
@@ -52,7 +52,7 @@ OS=$(uname -s); ARCH=$(uname -m)
 case "$OS" in Darwin) PLATFORM=mac;; Linux) PLATFORM=linux;; *) echo "unsupported system: $OS" >&2; exit 65;; esac
 SUDO=''; [ "$(id -u)" = 0 ] || SUDO=sudo
 HOMEBREW=''; for b in /opt/homebrew/bin/brew /usr/local/bin/brew; do [ -x $b ] && HOMEBREW=$b && break; done
-say "landingham-prompt-install: $PLATFORM ($ARCH), user $(id -un), home $HOME$( [ $DRY = 1 ] && echo ', DRY RUN')"
+say "beachhead prompt: $PLATFORM ($ARCH), user $(id -un), home $HOME$( [ $DRY = 1 ] && echo ', DRY RUN')"
 
 # ---- writing files: never silently over something that is not ours ----
 install_file() {  # install_file <payload function> <destination> [mode]
@@ -588,7 +588,7 @@ if [ ! -f "$ENV_FILE" ]; then
   say "  writing:   $ENV_FILE"
   if [ $DRY = 0 ]; then mkdir -p "$(dirname "$ENV_FILE")"; cat > "$ENV_FILE" <<ENVEOF
 # ~/.config/landingham-prompt/env — variables every shell on this machine carries, one KEY=value a line, read by fish,
-# zsh and bash alike (landingham-prompt-install.sh wrote it; edit freely; it is never overwritten). Never a secret.
+# zsh and bash alike (beachhead's prompt installer wrote it; edit freely; it is never overwritten). Never a secret.
 # Claude Code's Bash tool runs bash, not the shell you type in: fish is not supported there, and this pins it.
 CLAUDE_CODE_SHELL=$MODERN_BASH
 # Where account B's Claude settings live, for `account b` (a shell function): the folder need not exist on every machine.
@@ -608,7 +608,7 @@ check "the pinned bash exists ($MODERN_BASH)" test -x "$MODERN_BASH"
 # ---- 4. zsh and bash, for the times they are the shell: the same prompt, the same variables ----
 step "zsh and bash"
 read -r -d '' ZSH_BLOCK <<'ZEOF' || true
-# installed by landingham-prompt-install.sh; interactive shells only, and nothing here prints
+# installed by beachhead's prompt installer; interactive shells only, and nothing here prints
 [[ -o interactive ]] || return
 [[ -x /opt/homebrew/bin/brew ]] && eval "$(/opt/homebrew/bin/brew shellenv)"
 [[ ":$PATH:" == *":$HOME/.local/bin:"* ]] || export PATH="$HOME/.local/bin:$PATH"
@@ -638,7 +638,7 @@ if command -v starship >/dev/null; then
 fi
 ZEOF
 read -r -d '' BASH_BLOCK <<'BEOF' || true
-# installed by landingham-prompt-install.sh. The part above the guard is for EVERY bash, Claude Code's Bash tool
+# installed by beachhead's prompt installer. The part above the guard is for EVERY bash, Claude Code's Bash tool
 # included (it sources this file at session start): the paths and the shared variables, and nothing that prints.
 [ -x /opt/homebrew/bin/brew ] && eval "$(/opt/homebrew/bin/brew shellenv)"
 case ":$PATH:" in *":$HOME/.local/bin:"*) ;; *) export PATH="$HOME/.local/bin:$PATH";; esac

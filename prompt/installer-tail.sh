@@ -53,7 +53,7 @@ if [ ! -f "$ENV_FILE" ]; then
   say "  writing:   $ENV_FILE"
   if [ $DRY = 0 ]; then mkdir -p "$(dirname "$ENV_FILE")"; cat > "$ENV_FILE" <<ENVEOF
 # ~/.config/landingham-prompt/env — variables every shell on this machine carries, one KEY=value a line, read by fish,
-# zsh and bash alike (landingham-prompt-install.sh wrote it; edit freely; it is never overwritten). Never a secret.
+# zsh and bash alike (beachhead's prompt installer wrote it; edit freely; it is never overwritten). Never a secret.
 # Claude Code's Bash tool runs bash, not the shell you type in: fish is not supported there, and this pins it.
 CLAUDE_CODE_SHELL=$MODERN_BASH
 # Where account B's Claude settings live, for `account b` (a shell function): the folder need not exist on every machine.
@@ -73,7 +73,7 @@ check "the pinned bash exists ($MODERN_BASH)" test -x "$MODERN_BASH"
 # ---- 4. zsh and bash, for the times they are the shell: the same prompt, the same variables ----
 step "zsh and bash"
 read -r -d '' ZSH_BLOCK <<'ZEOF' || true
-# installed by landingham-prompt-install.sh; interactive shells only, and nothing here prints
+# installed by beachhead's prompt installer; interactive shells only, and nothing here prints
 [[ -o interactive ]] || return
 [[ -x /opt/homebrew/bin/brew ]] && eval "$(/opt/homebrew/bin/brew shellenv)"
 [[ ":$PATH:" == *":$HOME/.local/bin:"* ]] || export PATH="$HOME/.local/bin:$PATH"
@@ -103,7 +103,7 @@ if command -v starship >/dev/null; then
 fi
 ZEOF
 read -r -d '' BASH_BLOCK <<'BEOF' || true
-# installed by landingham-prompt-install.sh. The part above the guard is for EVERY bash, Claude Code's Bash tool
+# installed by beachhead's prompt installer. The part above the guard is for EVERY bash, Claude Code's Bash tool
 # included (it sources this file at session start): the paths and the shared variables, and nothing that prints.
 [ -x /opt/homebrew/bin/brew ] && eval "$(/opt/homebrew/bin/brew shellenv)"
 case ":$PATH:" in *":$HOME/.local/bin:"*) ;; *) export PATH="$HOME/.local/bin:$PATH";; esac
