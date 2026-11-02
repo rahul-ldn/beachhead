@@ -15,7 +15,16 @@
 # units named by BEACHHEAD_UNITS in the environment file. Found through Docker's and systemd's own listings, cached 30 s.
 #
 #   landingham: server✓ workers✓ caddy✓ postgres✓ fiderer✓ backup· migrate· · backup 03:12 812M off-site · disk 41% · load 0.3 · mem 62% free · docker✓ fail2ban✓ unattended-upgrades✓ landingham-watchdog✓
+#
+# A machine that is not the room can show the room: BEACHHEAD_REMOTE in the environment file names ssh hosts (the
+# names ssh knows, space-separated) to ask, each answering with its own line, shown prefixed with its name. The ask
+# runs in the background with a one-minute cache, so a prompt never waits on the network: the first prompt after a
+# change shows nothing remote, the next shows the room. --remote prints those lines alone (the prompt's lobby on such
+# a machine); --local, which the ask itself passes, stops a machine asking back.
+#
+#   tunhithe: A19 5h · B12 2d · baton B12 · slots 0/4
 set -u
+LOCAL=0; [ "${1:-}" = --local ] && { LOCAL=1; shift; }
 # The machine's own particulars live in ~/.config/beachhead/env, read here too because the tmux server's
 # environment is bare: LANDINGHAM_REPOSITORY (the checkout with the store's CLI) and LANDINGHAM_STORE (the store file).
 # Without them the baton is simply not shown.
@@ -105,10 +114,24 @@ PYEOF
   fi
   [ -f "$c" ] && cat "$c"
 }
+remote_lines() {  # one line a host, from the cache; a stale cache is refreshed in the background, never in the prompt's time
+  [ $LOCAL = 1 ] && return 0
+  local h c
+  for h in ${BEACHHEAD_REMOTE:-}; do
+    c=${TMPDIR:-/tmp}/landingham-remote-$h-$(id -u)
+    if [ ! -f "$c" ] || [ $(( now - $(mtime "$c") )) -gt 60 ]; then
+      if mkdir "$c.lock" 2>/dev/null; then
+        ( ssh -o BatchMode=yes -o ConnectTimeout=4 "$h" '~/.local/bin/landingham-status --local' > "$c.new" 2>/dev/null && [ -s "$c.new" ] && mv "$c.new" "$c"; rm -f "$c.new"; touch "$c" 2>/dev/null; rmdir "$c.lock" ) </dev/null >/dev/null 2>&1 &
+      fi
+    fi
+    [ -s "$c" ] && echo "$h: $(cat "$c")"
+  done
+}
 ops_services() { ops_line | sed -n 1p; }
 ops_host()     { ops_line | sed -n 2p; }
 
 case "${1:-}" in
+  --remote) remote_lines | while IFS= read -r l; do wrap "$l"; done; exit 0;;
   --ops) o1=$(ops_services); [ -n "$o1" ] && wrap "$o1"; o2=$(ops_host); [ -n "$o2" ] && wrap "$o2"; exit 0;;   # the services, then the host's figures, each wrapped
   --ops-services) o=$(ops_services); [ -n "$o" ] && wrap "$o"; exit 0;;
   --ops-host) o=$(ops_host); [ -n "$o" ] && wrap "$o"; exit 0;;
@@ -146,6 +169,7 @@ if [ -f "$heavy" ]; then label=$(sed -n 's/.*"label":"\([^"]*\)".*/\1/p' "$heavy
 slots=$HOME/satellite/leases/agent-slots
 if [ -d "$slots" ]; then held=$(ls "$slots" 2>/dev/null | wc -l | tr -d ' '); parts+=("slots $held/${PROCESS_AGENT_SLOTS:-4}"); fi
 o1=$(ops_services); [ -n "$o1" ] && parts+=("$o1"); o2=$(ops_host); [ -n "$o2" ] && parts+=("$o2")
+while IFS= read -r l; do [ -n "$l" ] && parts+=("$l"); done < <(remote_lines)
 line=''; [ ${#parts[@]} -gt 0 ] && line=$(join "${parts[@]}")
 if [ "${1:-}" = --claude ]; then
   head=$(python3 -c 'import json,sys,os

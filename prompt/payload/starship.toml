@@ -15,6 +15,7 @@ palette = 'gruvbox'
 
 format = """
 ${custom.tmux_outside}\
+${custom.remote_outside}\
 ${custom.ops_services}\
 ${custom.ops_host}\
 [](fg:head)\
@@ -88,6 +89,15 @@ shell   = ['/bin/sh']
 when    = 'test -z "$TMUX" && tmux list-sessions >/dev/null 2>&1'
 command = "$HOME/.local/bin/landingham-status --sessions"
 format  = "[  $output]($style)\n"
+style   = 'fg:lobby'
+
+# ---- the room elsewhere, outside tmux only, where BEACHHEAD_REMOTE names machines to ask ----
+
+[custom.remote_outside]
+shell   = ['/bin/sh']
+when    = 'test -z "$TMUX" && test -n "${BEACHHEAD_REMOTE:-}" && [ -n "$($HOME/.local/bin/landingham-status --remote)" ]'
+command = "$HOME/.local/bin/landingham-status --remote"
+format  = "[  $output]($style)\n"
 style   = 'fg:lobby'
 
 # ---- the stack, outside tmux only, on a machine that runs one: two lines above the band, for an 80-column window ----

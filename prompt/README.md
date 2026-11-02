@@ -13,6 +13,13 @@
 | `payload/beachhead.fish` | fish's drop-in (`~/.config/fish/conf.d/`): Homebrew on a Mac, `~/.local/bin`, the shared variables, the hook, starship, and `account`. |
 | `payload/tmux.conf` | The status bar: the machine, the session, the controllers' line, the clock. Absolute paths, because a tmux server may be born under `env -i`. |
 
+## Seeing the room from elsewhere
+
+`BEACHHEAD_REMOTE=tunhithe landingham` in the environment file makes the prompt (outside tmux), the tmux bar and
+Claude's status line show each named machine's own line, prefixed with its name: the controllers and the baton from
+Tunhithe, the services and the backup from the server. The ask is `ssh <host> landingham-status --local`, run in the
+background with a one-minute cache, so a prompt never waits on the network; the keys must work without a prompt.
+
 ## Switching the Claude account
 
 `account b` makes a `claude` typed in that shell start under account B (its folder from `CLAUDE_CONFIG_DIR_B` in the

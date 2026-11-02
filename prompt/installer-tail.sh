@@ -75,6 +75,10 @@ if [ $PLATFORM = linux ] && ! grep -q '^#*BEACHHEAD_ICONS=' "$ENV_FILE" 2>/dev/n
   say "  noting the icon setting in it (commented out): set BEACHHEAD_ICONS=basic if you reach this machine from Terminal.app"
   [ $DRY = 0 ] && printf '%s\n%s\n' '# The prompt icons: material (the default; Ghostty, iTerm2, Kitty draw them) or basic (Terminal.app draws material icons two cells wide). ssh carries no terminal name here, so say which:' '#BEACHHEAD_ICONS=basic' >> "$ENV_FILE"
 fi
+if ! grep -q '^#*BEACHHEAD_REMOTE=' "$ENV_FILE" 2>/dev/null; then
+  say "  noting the remote setting in it (commented out): BEACHHEAD_REMOTE names machines to ask for their line"
+  [ $DRY = 0 ] && printf '%s\n%s\n' '# The room elsewhere: ssh hosts (as ssh knows them, space-separated) whose status line this prompt shows, fetched in the background each minute. Keys must work without a prompt.' '#BEACHHEAD_REMOTE=tunhithe landingham' >> "$ENV_FILE"
+fi
 # The process store and its checkout, for the baton in the status bar: found by their shape on this machine, never
 # named here. The checkout is the project folder when it carries the store's CLI; the store is the one corpus.sqlite
 # under the Mac's Application Support. Each line is added once, when absent, and never changed afterwards.

@@ -28,7 +28,7 @@
 set -euo pipefail
 
 main() {
-BEACHHEAD_BUILD='5fe83627c06d'   # build-installer.py fills this in: a digest of its sources
+BEACHHEAD_BUILD='8563e841718d'   # build-installer.py fills this in: a digest of its sources
 STARSHIP_VERSION=v1.27.0
 STAMP=$(date +%Y%m%d-%H%M%S)
 DRY=0; PACKAGES=1; FONT=1; CHSH=1; STATUSLINE=1; PROJECT=''; DEFAULT_PALETTE=''; NOTTY=${BEACHHEAD_NOTTY:-0}
@@ -106,6 +106,7 @@ palette = 'gruvbox'
 
 format = """
 ${custom.tmux_outside}\
+${custom.remote_outside}\
 ${custom.ops_services}\
 ${custom.ops_host}\
 [](fg:head)\
@@ -179,6 +180,15 @@ shell   = ['/bin/sh']
 when    = 'test -z "$TMUX" && tmux list-sessions >/dev/null 2>&1'
 command = "$HOME/.local/bin/landingham-status --sessions"
 format  = "[  $output]($style)\n"
+style   = 'fg:lobby'
+
+# ---- the room elsewhere, outside tmux only, where BEACHHEAD_REMOTE names machines to ask ----
+
+[custom.remote_outside]
+shell   = ['/bin/sh']
+when    = 'test -z "$TMUX" && test -n "${BEACHHEAD_REMOTE:-}" && [ -n "$($HOME/.local/bin/landingham-status --remote)" ]'
+command = "$HOME/.local/bin/landingham-status --remote"
+format  = "[  $output]($style)\n"
 style   = 'fg:lobby'
 
 # ---- the stack, outside tmux only, on a machine that runs one: two lines above the band, for an 80-column window ----
@@ -364,7 +374,16 @@ cat <<'LANDINGHAM_PAYLOAD_END'
 # units named by BEACHHEAD_UNITS in the environment file. Found through Docker's and systemd's own listings, cached 30 s.
 #
 #   landingham: server✓ workers✓ caddy✓ postgres✓ fiderer✓ backup· migrate· · backup 03:12 812M off-site · disk 41% · load 0.3 · mem 62% free · docker✓ fail2ban✓ unattended-upgrades✓ landingham-watchdog✓
+#
+# A machine that is not the room can show the room: BEACHHEAD_REMOTE in the environment file names ssh hosts (the
+# names ssh knows, space-separated) to ask, each answering with its own line, shown prefixed with its name. The ask
+# runs in the background with a one-minute cache, so a prompt never waits on the network: the first prompt after a
+# change shows nothing remote, the next shows the room. --remote prints those lines alone (the prompt's lobby on such
+# a machine); --local, which the ask itself passes, stops a machine asking back.
+#
+#   tunhithe: A19 5h · B12 2d · baton B12 · slots 0/4
 set -u
+LOCAL=0; [ "${1:-}" = --local ] && { LOCAL=1; shift; }
 # The machine's own particulars live in ~/.config/beachhead/env, read here too because the tmux server's
 # environment is bare: LANDINGHAM_REPOSITORY (the checkout with the store's CLI) and LANDINGHAM_STORE (the store file).
 # Without them the baton is simply not shown.
@@ -454,10 +473,24 @@ PYEOF
   fi
   [ -f "$c" ] && cat "$c"
 }
+remote_lines() {  # one line a host, from the cache; a stale cache is refreshed in the background, never in the prompt's time
+  [ $LOCAL = 1 ] && return 0
+  local h c
+  for h in ${BEACHHEAD_REMOTE:-}; do
+    c=${TMPDIR:-/tmp}/landingham-remote-$h-$(id -u)
+    if [ ! -f "$c" ] || [ $(( now - $(mtime "$c") )) -gt 60 ]; then
+      if mkdir "$c.lock" 2>/dev/null; then
+        ( ssh -o BatchMode=yes -o ConnectTimeout=4 "$h" '~/.local/bin/landingham-status --local' > "$c.new" 2>/dev/null && [ -s "$c.new" ] && mv "$c.new" "$c"; rm -f "$c.new"; touch "$c" 2>/dev/null; rmdir "$c.lock" ) </dev/null >/dev/null 2>&1 &
+      fi
+    fi
+    [ -s "$c" ] && echo "$h: $(cat "$c")"
+  done
+}
 ops_services() { ops_line | sed -n 1p; }
 ops_host()     { ops_line | sed -n 2p; }
 
 case "${1:-}" in
+  --remote) remote_lines | while IFS= read -r l; do wrap "$l"; done; exit 0;;
   --ops) o1=$(ops_services); [ -n "$o1" ] && wrap "$o1"; o2=$(ops_host); [ -n "$o2" ] && wrap "$o2"; exit 0;;   # the services, then the host's figures, each wrapped
   --ops-services) o=$(ops_services); [ -n "$o" ] && wrap "$o"; exit 0;;
   --ops-host) o=$(ops_host); [ -n "$o" ] && wrap "$o"; exit 0;;
@@ -495,6 +528,7 @@ if [ -f "$heavy" ]; then label=$(sed -n 's/.*"label":"\([^"]*\)".*/\1/p' "$heavy
 slots=$HOME/satellite/leases/agent-slots
 if [ -d "$slots" ]; then held=$(ls "$slots" 2>/dev/null | wc -l | tr -d ' '); parts+=("slots $held/${PROCESS_AGENT_SLOTS:-4}"); fi
 o1=$(ops_services); [ -n "$o1" ] && parts+=("$o1"); o2=$(ops_host); [ -n "$o2" ] && parts+=("$o2")
+while IFS= read -r l; do [ -n "$l" ] && parts+=("$l"); done < <(remote_lines)
 line=''; [ ${#parts[@]} -gt 0 ] && line=$(join "${parts[@]}")
 if [ "${1:-}" = --claude ]; then
   head=$(python3 -c 'import json,sys,os
@@ -777,6 +811,10 @@ fi
 if [ $PLATFORM = linux ] && ! grep -q '^#*BEACHHEAD_ICONS=' "$ENV_FILE" 2>/dev/null; then
   say "  noting the icon setting in it (commented out): set BEACHHEAD_ICONS=basic if you reach this machine from Terminal.app"
   [ $DRY = 0 ] && printf '%s\n%s\n' '# The prompt icons: material (the default; Ghostty, iTerm2, Kitty draw them) or basic (Terminal.app draws material icons two cells wide). ssh carries no terminal name here, so say which:' '#BEACHHEAD_ICONS=basic' >> "$ENV_FILE"
+fi
+if ! grep -q '^#*BEACHHEAD_REMOTE=' "$ENV_FILE" 2>/dev/null; then
+  say "  noting the remote setting in it (commented out): BEACHHEAD_REMOTE names machines to ask for their line"
+  [ $DRY = 0 ] && printf '%s\n%s\n' '# The room elsewhere: ssh hosts (as ssh knows them, space-separated) whose status line this prompt shows, fetched in the background each minute. Keys must work without a prompt.' '#BEACHHEAD_REMOTE=tunhithe landingham' >> "$ENV_FILE"
 fi
 # The process store and its checkout, for the baton in the status bar: found by their shape on this machine, never
 # named here. The checkout is the project folder when it carries the store's CLI; the store is the one corpus.sqlite
