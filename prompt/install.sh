@@ -28,7 +28,7 @@
 set -euo pipefail
 
 main() {
-BEACHHEAD_BUILD='c25ac766ddcc'   # build-installer.py fills this in: a digest of its sources
+BEACHHEAD_BUILD='aa9ce38edfc5'   # build-installer.py fills this in: a digest of its sources
 STARSHIP_VERSION=v1.27.0
 STAMP=$(date +%Y%m%d-%H%M%S)
 DRY=0; PACKAGES=1; FONT=1; CHSH=1; STATUSLINE=1; PROJECT=''; DEFAULT_PALETTE=''; NOTTY=${BEACHHEAD_NOTTY:-0}
@@ -549,7 +549,7 @@ elif [ $PLATFORM = mac ]; then
   [ -n "$HOMEBREW" ] || { echo "Homebrew is not installed; install it first (https://brew.sh), then run this again." >&2; exit 66; }
   for f in starship fish bash tmux; do "$HOMEBREW" list --formula "$f" >/dev/null 2>&1 && say "  present: $f" || soft "$HOMEBREW" install "$f"; done
   if [ $FONT = 1 ]; then
-    if ls "$HOME/Library/Fonts/FiraCodeNerdFontMono-Regular.ttf" /Library/Fonts/FiraCodeNerdFontMono-Regular.ttf >/dev/null 2>&1; then say "  present: FiraCode Nerd Font Mono (the font files are in place; the cask is not needed)"
+    if [ -f "$HOME/Library/Fonts/FiraCodeNerdFontMono-Regular.ttf" ] || [ -f /Library/Fonts/FiraCodeNerdFontMono-Regular.ttf ]; then say "  present: FiraCode Nerd Font Mono (the font files are in place; the cask is not needed)"
     elif "$HOMEBREW" list --cask font-fira-code-nerd-font >/dev/null 2>&1; then say "  present: font-fira-code-nerd-font"
     else soft "$HOMEBREW" install --cask font-fira-code-nerd-font; fi
   fi
