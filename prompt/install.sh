@@ -28,7 +28,7 @@
 set -euo pipefail
 
 main() {
-BEACHHEAD_BUILD='55daf4a12f9c'   # build-installer.py fills this in: a digest of its sources
+BEACHHEAD_BUILD='bd7b5555daee'   # build-installer.py fills this in: a digest of its sources
 STARSHIP_VERSION=v1.27.0
 STAMP=$(date +%Y%m%d-%H%M%S)
 DRY=0; PACKAGES=1; FONT=1; CHSH=1; STATUSLINE=1; PROJECT=''; DEFAULT_PALETTE=''; NOTTY=${BEACHHEAD_NOTTY:-0}
@@ -684,8 +684,8 @@ elif [ $PLATFORM = mac ]; then
   fi
 else
   if command -v apt-get >/dev/null; then
-    missing=''; for p in fish tmux curl ca-certificates; do dpkg -s "$p" >/dev/null 2>&1 || missing="$missing $p"; done
-    if [ -n "$missing" ]; then soft $SUDO apt-get update -qq; soft $SUDO apt-get install -y -qq $missing; else say "  present: fish tmux curl"; fi
+    missing=''; for p in fish tmux curl ca-certificates python3; do dpkg -s "$p" >/dev/null 2>&1 || missing="$missing $p"; done
+    if [ -n "$missing" ]; then soft $SUDO apt-get update -qq; soft $SUDO apt-get install -y -qq $missing; else say "  present: fish tmux curl python3"; fi
   else
     say "  no apt-get here: install fish and tmux yourself; starship still comes from its release tarball"
   fi
