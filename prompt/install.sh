@@ -28,7 +28,7 @@
 set -euo pipefail
 
 main() {
-BEACHHEAD_BUILD='83bd546de5f0'   # build-installer.py fills this in: a digest of its sources
+BEACHHEAD_BUILD='55daf4a12f9c'   # build-installer.py fills this in: a digest of its sources
 STARSHIP_VERSION=v1.27.0
 STAMP=$(date +%Y%m%d-%H%M%S)
 DRY=0; PACKAGES=1; FONT=1; CHSH=1; STATUSLINE=1; PROJECT=''; DEFAULT_PALETTE=''; NOTTY=${BEACHHEAD_NOTTY:-0}
@@ -186,7 +186,7 @@ style   = 'fg:lobby'
 shell   = ['/bin/sh']
 when    = 'test -z "$TMUX" && command -v docker >/dev/null 2>&1 && [ -n "$($HOME/.local/bin/landingham-status --ops)" ]'
 command = "$HOME/.local/bin/landingham-status --ops"
-format  = "[  $output]($style)\n"
+format  = "[󰡨  $output]($style)\n"
 style   = 'fg:lobby'
 
 # ---- the machine: the head of the band, with its own icon ----
@@ -195,21 +195,21 @@ style   = 'fg:lobby'
 shell   = ['/bin/sh']
 when    = 'test "$(hostname -s)" = Tunhithe'
 command = 'echo Tunhithe'
-format  = '[ $output ]($style)[](fg:head bg:path)'
+format  = '[󰍹 $output ]($style)[](fg:head bg:path)'
 style   = 'bold fg:headtext bg:head'
 
 [custom.carrack]
 shell   = ['/bin/sh']
 when    = 'test "$(hostname -s)" = Carrack'
 command = 'echo Carrack'
-format  = '[ $output ]($style)[](fg:head bg:path)'
+format  = '[󰌢 $output ]($style)[](fg:head bg:path)'
 style   = 'bold fg:headtext bg:head'
 
 [custom.elsewhere]
 shell   = ['/bin/sh']
 when    = 'case "$(hostname -s)" in Tunhithe|Carrack) exit 1;; esac'
 command = 'hostname -s'
-format  = '[ $output ]($style)[](fg:head bg:path)'
+format  = '[󰒍 $output ]($style)[](fg:head bg:path)'
 style   = 'bold fg:headtext bg:head'
 
 # ---- the path: one cell, the repository's root in bold, folders as icons by substitution ----
@@ -218,7 +218,7 @@ style   = 'bold fg:headtext bg:head'
 [directory]
 format                 = '[  $path ]($style)[$read_only]($read_only_style)'
 style                  = 'fg:pathtext bg:path'
-read_only              = ' '
+read_only              = '󰌾 '
 read_only_style        = 'fg:pathtext bg:path'
 truncation_length      = 3
 truncate_to_repo       = false
@@ -228,11 +228,11 @@ repo_root_format       = '[  $before_root_path](fg:pathtext bg:path)[$repo_root]
 
 [directory.substitutions]
 '~/Claude/Projects/CRM' = ' CRM'
-'Documents' = ' '
+'Documents' = '󰈙 '
 'Downloads' = ' '
-'Music'     = ' '
+'Music'     = '󰝚 '
 'Pictures'  = ' '
-'Developer' = ' '
+'Developer' = '󰲋 '
 
 # ---- git: one cell, entered from the path ----
 
@@ -320,18 +320,18 @@ style    = 'fg:#999999'
 [custom.account_a]
 shell   = ['/bin/sh']
 when    = 'command -v claude >/dev/null 2>&1 && test -z "${CLAUDE_CONFIG_DIR:-}"'
-format  = '[](fg:acct)[✳ A]($style)[](fg:acct) '
+format  = '[](fg:acct)[󱚝 A]($style)[](fg:acct) '
 style   = 'bold fg:accttext bg:acct'
 
 [custom.account_b]
 shell   = ['/bin/sh']
 when    = 'command -v claude >/dev/null 2>&1 && case "${CLAUDE_CONFIG_DIR:-}" in *claude-b*) exit 0;; *) exit 1;; esac'
-format  = '[](fg:acctb)[✳ B]($style)[](fg:acctb) '
+format  = '[](fg:acctb)[󱚝 B]($style)[](fg:acctb) '
 style   = 'bold fg:accttext bg:acctb'
 
 [time]
 disabled    = false
-format      = '[](fg:time)[ $time]($style)[](fg:time)'
+format      = '[](fg:time)[󰥔 $time]($style)[](fg:time)'
 time_format = '%H:%M'
 style       = 'fg:timetext bg:time'
 LANDINGHAM_PAYLOAD_END
@@ -490,6 +490,10 @@ cat <<'LANDINGHAM_PAYLOAD_END'
 #   to the first such file, so a worktree inside the project inherits it, and builds the project's config once as
 #   ~/.cache/starship/<name>.toml (the template with its palette line changed and the project's table appended),
 #   rebuilding only when the template or the project's file is newer.
+#   The icons: the template's are the Nerd Font's Material set, which Terminal.app draws two cells wide while the shell
+#   counts one, cutting the band's ends. When TERM_PROGRAM is Apple_Terminal, or BEACHHEAD_ICONS=basic (set it in the
+#   environment file on a server you reach from Terminal.app, since ssh carries no terminal name), the config handed out
+#   is a copy with basic-range icons instead; BEACHHEAD_ICONS=material keeps them whatever the terminal.
 set -u
 template=${PROMPT_TEMPLATE:-$HOME/.config/starship/starship.toml}
 cache=${PROMPT_CACHE:-$HOME/.cache/starship}
@@ -503,15 +507,27 @@ while [ "$dir" != / ] && [ -n "$dir" ]; do
   if [ -f "$dir/.prompt-palette.toml" ]; then project=$dir/.prompt-palette.toml; break; fi
   dir=$(dirname "$dir")
 done
-[ -n "$project" ] || { echo "$template"; exit 0; }
+icons=${BEACHHEAD_ICONS:-}
+[ -n "$icons" ] || { [ "${TERM_PROGRAM:-}" = Apple_Terminal ] && icons=basic || icons=material; }
+with_icons() {  # with_icons <config>: the config itself, or its basic-icon copy, built once and kept beside the others
+  local src=$1 out
+  [ "$icons" = basic ] || { echo "$src"; return; }
+  out=$cache/$(basename "${src%.toml}")-basic.toml
+  if [ ! -f "$out" ] || [ "$src" -nt "$out" ]; then
+    mkdir -p "$cache"
+    sed -e 's/󰍹//g; s/󰌢//g; s/󰒍//g; s/󰌾//g; s/󱚝/✳/g; s/󰥔//g; s/󰈙//g; s/󰝚//g; s/󰲋//g; s/󰡨//g' "$src" > "$out.new" && mv "$out.new" "$out"
+  fi
+  echo "$out"
+}
+[ -n "$project" ] || { with_icons "$template"; exit 0; }
 name=$(sed -n "s/^palette *= *'\([^']*\)'.*/\1/p" "$project" | head -1)
-[ -n "$name" ] || { echo "$template"; exit 0; }
+[ -n "$name" ] || { with_icons "$template"; exit 0; }
 built=$cache/$name.toml
 if [ ! -f "$built" ] || [ "$template" -nt "$built" ] || [ "$project" -nt "$built" ]; then
   mkdir -p "$cache"
   { sed "s|^palette = .*|palette = '$name'|" "$template"; echo; echo "# ---- from $project ----"; grep -v "^palette *=" "$project"; } > "$built.new" && mv "$built.new" "$built"
 fi
-echo "$built"
+with_icons "$built"
 LANDINGHAM_PAYLOAD_END
 }
 
@@ -727,6 +743,10 @@ ENVEOF
 else
   say "  present:   $ENV_FILE (left as it is)"
   grep -q '^CLAUDE_CODE_SHELL=' "$ENV_FILE" || { say "  adding CLAUDE_CODE_SHELL=$MODERN_BASH to it"; [ $DRY = 0 ] && echo "CLAUDE_CODE_SHELL=$MODERN_BASH" >> "$ENV_FILE"; }
+fi
+if [ $PLATFORM = linux ] && ! grep -q '^#*BEACHHEAD_ICONS=' "$ENV_FILE" 2>/dev/null; then
+  say "  noting the icon setting in it (commented out): set BEACHHEAD_ICONS=basic if you reach this machine from Terminal.app"
+  [ $DRY = 0 ] && printf '%s\n%s\n' '# The prompt icons: material (the default; Ghostty, iTerm2, Kitty draw them) or basic (Terminal.app draws material icons two cells wide). ssh carries no terminal name here, so say which:' '#BEACHHEAD_ICONS=basic' >> "$ENV_FILE"
 fi
 # The process store and its checkout, for the baton in the status bar: found by their shape on this machine, never
 # named here. The checkout is the project folder when it carries the store's CLI; the store is the one corpus.sqlite

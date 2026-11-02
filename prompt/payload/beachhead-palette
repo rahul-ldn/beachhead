@@ -9,6 +9,10 @@
 #   to the first such file, so a worktree inside the project inherits it, and builds the project's config once as
 #   ~/.cache/starship/<name>.toml (the template with its palette line changed and the project's table appended),
 #   rebuilding only when the template or the project's file is newer.
+#   The icons: the template's are the Nerd Font's Material set, which Terminal.app draws two cells wide while the shell
+#   counts one, cutting the band's ends. When TERM_PROGRAM is Apple_Terminal, or BEACHHEAD_ICONS=basic (set it in the
+#   environment file on a server you reach from Terminal.app, since ssh carries no terminal name), the config handed out
+#   is a copy with basic-range icons instead; BEACHHEAD_ICONS=material keeps them whatever the terminal.
 set -u
 template=${PROMPT_TEMPLATE:-$HOME/.config/starship/starship.toml}
 cache=${PROMPT_CACHE:-$HOME/.cache/starship}
@@ -22,12 +26,24 @@ while [ "$dir" != / ] && [ -n "$dir" ]; do
   if [ -f "$dir/.prompt-palette.toml" ]; then project=$dir/.prompt-palette.toml; break; fi
   dir=$(dirname "$dir")
 done
-[ -n "$project" ] || { echo "$template"; exit 0; }
+icons=${BEACHHEAD_ICONS:-}
+[ -n "$icons" ] || { [ "${TERM_PROGRAM:-}" = Apple_Terminal ] && icons=basic || icons=material; }
+with_icons() {  # with_icons <config>: the config itself, or its basic-icon copy, built once and kept beside the others
+  local src=$1 out
+  [ "$icons" = basic ] || { echo "$src"; return; }
+  out=$cache/$(basename "${src%.toml}")-basic.toml
+  if [ ! -f "$out" ] || [ "$src" -nt "$out" ]; then
+    mkdir -p "$cache"
+    sed -e 's/󰍹//g; s/󰌢//g; s/󰒍//g; s/󰌾//g; s/󱚝/✳/g; s/󰥔//g; s/󰈙//g; s/󰝚//g; s/󰲋//g; s/󰡨//g' "$src" > "$out.new" && mv "$out.new" "$out"
+  fi
+  echo "$out"
+}
+[ -n "$project" ] || { with_icons "$template"; exit 0; }
 name=$(sed -n "s/^palette *= *'\([^']*\)'.*/\1/p" "$project" | head -1)
-[ -n "$name" ] || { echo "$template"; exit 0; }
+[ -n "$name" ] || { with_icons "$template"; exit 0; }
 built=$cache/$name.toml
 if [ ! -f "$built" ] || [ "$template" -nt "$built" ] || [ "$project" -nt "$built" ]; then
   mkdir -p "$cache"
   { sed "s|^palette = .*|palette = '$name'|" "$template"; echo; echo "# ---- from $project ----"; grep -v "^palette *=" "$project"; } > "$built.new" && mv "$built.new" "$built"
 fi
-echo "$built"
+with_icons "$built"
