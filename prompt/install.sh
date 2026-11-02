@@ -28,7 +28,7 @@
 set -euo pipefail
 
 main() {
-BEACHHEAD_BUILD='bd7b5555daee'   # build-installer.py fills this in: a digest of its sources
+BEACHHEAD_BUILD='32c5d537f9aa'   # build-installer.py fills this in: a digest of its sources
 STARSHIP_VERSION=v1.27.0
 STAMP=$(date +%Y%m%d-%H%M%S)
 DRY=0; PACKAGES=1; FONT=1; CHSH=1; STATUSLINE=1; PROJECT=''; DEFAULT_PALETTE=''; NOTTY=${BEACHHEAD_NOTTY:-0}
@@ -367,7 +367,9 @@ repo=${LANDINGHAM_REPOSITORY:-}
 store=${LANDINGHAM_STORE:-}
 cache=${TMPDIR:-/tmp}/landingham-baton-$(id -u)
 now=$(date +%s)
-mtime() { stat -f %m "$1" 2>/dev/null || stat -c %Y "$1" 2>/dev/null || echo 0; }
+mtime() {  # GNU stat (Linux) takes -c %Y; BSD stat (a Mac) takes -f %m, and GNU accepts -f with another meaning, so ask which first
+  if stat --version >/dev/null 2>&1; then stat -c %Y "$1" 2>/dev/null || echo 0; else stat -f %m "$1" 2>/dev/null || echo 0; fi
+}
 ago() { local s=$(( now - $1 )); if [ "$s" -lt 60 ]; then echo "${s}s"; elif [ "$s" -lt 3600 ]; then echo "$(( s / 60 ))m"; elif [ "$s" -lt 86400 ]; then echo "$(( s / 3600 ))h"; else echo "$(( s / 86400 ))d"; fi; }
 short() {  # "✳ CRM Controller Tunhithe-A 20" -> A20
   local l=$1; l=${l#✳ }; l=${l#CRM }; l=${l#Controller }; l=${l#Tunhithe-}; l=${l#Carrack-}; echo "${l// /}"
