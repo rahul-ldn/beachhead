@@ -28,7 +28,7 @@
 set -euo pipefail
 
 main() {
-BEACHHEAD_BUILD='aa9ce38edfc5'   # build-installer.py fills this in: a digest of its sources
+BEACHHEAD_BUILD='028128027a5c'   # build-installer.py fills this in: a digest of its sources
 STARSHIP_VERSION=v1.27.0
 STAMP=$(date +%Y%m%d-%H%M%S)
 DRY=0; PACKAGES=1; FONT=1; CHSH=1; STATUSLINE=1; PROJECT=''; DEFAULT_PALETTE=''; NOTTY=${BEACHHEAD_NOTTY:-0}
@@ -619,8 +619,9 @@ fi
 env_add() { grep -q "^$1=" "$ENV_FILE" 2>/dev/null && say "  present:   $1" || { say "  adding:    $1=$2"; [ $DRY = 0 ] && printf '%s=%s\n' "$1" "$2" >> "$ENV_FILE"; }; }
 if [ -n "$PROJECT" ] && [ -f "$PROJECT/corpus/cli.mjs" ]; then env_add LANDINGHAM_REPOSITORY "$PROJECT"; fi
 if [ $PLATFORM = mac ]; then
-  stores=$(ls "$HOME/Library/Application Support"/*/process/corpus.sqlite 2>/dev/null | wc -l | tr -d ' ')
-  if [ "$stores" = 1 ]; then env_add LANDINGHAM_STORE "$(ls "$HOME/Library/Application Support"/*/process/corpus.sqlite)"; elif [ "$stores" != 0 ]; then say "  $stores process stores found under Application Support: name LANDINGHAM_STORE in $ENV_FILE yourself"; fi
+  found=''; n=0
+  for f in "$HOME/Library/Application Support"/*/process/corpus.sqlite; do [ -f "$f" ] && { found=$f; n=$((n+1)); }; done
+  if [ $n = 1 ]; then env_add LANDINGHAM_STORE "$found"; elif [ $n = 0 ]; then say "  no process store on this Mac: LANDINGHAM_STORE not set (the baton shows only where the store is)"; else say "  $n process stores found under Application Support: name LANDINGHAM_STORE in $ENV_FILE yourself"; fi
 fi
 check "the pinned bash exists ($MODERN_BASH)" test -x "$MODERN_BASH"
 

@@ -75,8 +75,9 @@ fi
 env_add() { grep -q "^$1=" "$ENV_FILE" 2>/dev/null && say "  present:   $1" || { say "  adding:    $1=$2"; [ $DRY = 0 ] && printf '%s=%s\n' "$1" "$2" >> "$ENV_FILE"; }; }
 if [ -n "$PROJECT" ] && [ -f "$PROJECT/corpus/cli.mjs" ]; then env_add LANDINGHAM_REPOSITORY "$PROJECT"; fi
 if [ $PLATFORM = mac ]; then
-  stores=$(ls "$HOME/Library/Application Support"/*/process/corpus.sqlite 2>/dev/null | wc -l | tr -d ' ')
-  if [ "$stores" = 1 ]; then env_add LANDINGHAM_STORE "$(ls "$HOME/Library/Application Support"/*/process/corpus.sqlite)"; elif [ "$stores" != 0 ]; then say "  $stores process stores found under Application Support: name LANDINGHAM_STORE in $ENV_FILE yourself"; fi
+  found=''; n=0
+  for f in "$HOME/Library/Application Support"/*/process/corpus.sqlite; do [ -f "$f" ] && { found=$f; n=$((n+1)); }; done
+  if [ $n = 1 ]; then env_add LANDINGHAM_STORE "$found"; elif [ $n = 0 ]; then say "  no process store on this Mac: LANDINGHAM_STORE not set (the baton shows only where the store is)"; else say "  $n process stores found under Application Support: name LANDINGHAM_STORE in $ENV_FILE yourself"; fi
 fi
 check "the pinned bash exists ($MODERN_BASH)" test -x "$MODERN_BASH"
 
