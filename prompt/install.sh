@@ -28,7 +28,7 @@
 set -euo pipefail
 
 main() {
-BEACHHEAD_BUILD='8d7e3bbaea6a'   # build-installer.py fills this in: a digest of its sources
+BEACHHEAD_BUILD='33c80f9a8186'   # build-installer.py fills this in: a digest of its sources
 STARSHIP_VERSION=v1.27.0
 STAMP=$(date +%Y%m%d-%H%M%S)
 DRY=0; PACKAGES=1; FONT=1; CHSH=1; STATUSLINE=1; PROJECT=''; DEFAULT_PALETTE=''; NOTTY=${BEACHHEAD_NOTTY:-0}
@@ -420,10 +420,14 @@ ops_line() {
   command -v docker >/dev/null 2>&1 || return 0
   local c=${TMPDIR:-/tmp}/landingham-ops-$(id -u) i
   if [ ! -f "$c" ] || [ $(( now - $(mtime "$c") )) -gt 30 ]; then
-    if ! mkdir "$c.lock" 2>/dev/null; then   # another prompt module is refreshing it: wait for that, up to 10 s
-      i=0; while [ -d "$c.lock" ] && [ $i -lt 100 ]; do sleep 0.1; i=$((i+1)); done
-      [ -f "$c" ] && cat "$c"; return 0
+    if mkdir "$c.lock" 2>/dev/null; then   # one refresher at a time, in the background: a prompt never waits for Docker
+      ( ops_refresh "$c"; rmdir "$c.lock" 2>/dev/null ) </dev/null >/dev/null 2>&1 &
     fi
+  fi
+  [ -f "$c" ] && cat "$c"
+}
+ops_refresh() {
+  local c=$1
     python3 - > "$c.new" 2>/dev/null <<'PYEOF'
 import json, subprocess, os, time
 def run(*a):
@@ -454,10 +458,15 @@ if st:
         lr=os.path.join(st,'last-run')
         try: text=open(lr).read()
         except PermissionError: text=run('sudo','-n','cat',lr)   # the backup runs as root; the admin user's sudo asks nothing
-        f=text.split()   # <stamp> <size> off-site|local-only
-        stamp=f[0]; age=time.time()-time.mktime(time.strptime(stamp[:19],'%Y-%m-%dT%H:%M:%S'))
-        hhmm=stamp[11:16]; warn=' \u2717' if age>26*3600 or (len(f)>2 and f[2]!='off-site') else ''
-        parts.append('backup '+hhmm+' '+' '.join(f[1:3])+warn)
+        f=text.split()   # <stamp> <size in bytes> off-site|local-only; the stamp is 20261102T031204Z (or with dashes and colons)
+        stamp=f[0].replace('-','').replace(':','')
+        import calendar; when=calendar.timegm(time.strptime(stamp[:15],'%Y%m%dT%H%M%S')); age=time.time()-when
+        hhmm=stamp[9:11]+':'+stamp[11:13]
+        size=f[1] if len(f)>1 else ''
+        if size.isdigit(): n=int(size); size=('%dM'%(n//1048576)) if n<1073741824 else ('%.1fG'%(n/1073741824))
+        where=f[2] if len(f)>2 else ''
+        warn=' \u2717' if age>26*3600 or (where and where!='off-site') else ''
+        parts.append(('backup %s %s %s'%(hhmm,size,where)).strip()+warn)
     except Exception: parts.append('backup ?' if os.path.isdir(st) else 'backup: no state folder')
 try:
     stv=os.statvfs('/'); used=100-int(stv.f_bavail*100/stv.f_blocks); parts.append('disk %d%%%s'%(used,' \u2717' if used>=85 else ''))
@@ -477,9 +486,6 @@ if units and (os.path.exists('/bin/systemctl') or os.path.exists('/usr/bin/syste
 if projects: print(' \u00b7 '.join(projects)); print(' \u00b7 '.join(parts))   # no stack running here (a Mac with Docker Desktop or colima): no operations lines at all
 PYEOF
     if [ -s "$c.new" ]; then mv "$c.new" "$c"; else rm -f "$c.new" "$c"; fi
-    rmdir "$c.lock" 2>/dev/null
-  fi
-  [ -f "$c" ] && cat "$c"
 }
 remote_lines() {  # one line a host, from the cache; a stale cache is refreshed in the background, never in the prompt's time
   [ $LOCAL = 1 ] && return 0
@@ -498,7 +504,7 @@ ops_services() { ops_line | sed -n 1p; }
 ops_host()     { ops_line | sed -n 2p; }
 
 case "${1:-}" in
-  --remote) remote_lines | while IFS= read -r l; do wrap "$l"; done; exit 0;;
+  --remote) n=0; remote_lines | while IFS= read -r l; do n=$((n+1)); [ $n -gt 1 ] && printf '   '; wrap "$l"; done; exit 0;;
   --ops) o1=$(ops_services); [ -n "$o1" ] && wrap "$o1"; o2=$(ops_host); [ -n "$o2" ] && wrap "$o2"; exit 0;;   # the services, then the host's figures, each wrapped
   --ops-services) o=$(ops_services); [ -n "$o" ] && wrap "$o"; exit 0;;
   --ops-host) o=$(ops_host); [ -n "$o" ] && wrap "$o"; exit 0;;
