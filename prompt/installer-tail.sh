@@ -57,7 +57,7 @@ if [ ! -f "$ENV_FILE" ]; then
 # zsh and bash alike (beachhead's prompt installer wrote it; edit freely; it is never overwritten). Never a secret.
 # Claude Code's Bash tool runs bash, not the shell you type in: fish is not supported there, and this pins it.
 CLAUDE_CODE_SHELL=$MODERN_BASH
-# Where account B's Claude settings live, for `account b` (a shell function): the folder need not exist on every machine.
+# Where account B's Claude settings live, for the shell function 'account b': the folder need not exist on every machine.
 CLAUDE_CONFIG_DIR_B=$HOME/.claude-b
 ENVEOF
   fi

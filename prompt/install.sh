@@ -28,7 +28,7 @@
 set -euo pipefail
 
 main() {
-BEACHHEAD_BUILD='650014e36daa'   # build-installer.py fills this in: a digest of its sources
+BEACHHEAD_BUILD='f34d0856250b'   # build-installer.py fills this in: a digest of its sources
 STARSHIP_VERSION=v1.27.0
 STAMP=$(date +%Y%m%d-%H%M%S)
 DRY=0; PACKAGES=1; FONT=1; CHSH=1; STATUSLINE=1; PROJECT=''; DEFAULT_PALETTE=''
@@ -593,7 +593,7 @@ if [ ! -f "$ENV_FILE" ]; then
 # zsh and bash alike (beachhead's prompt installer wrote it; edit freely; it is never overwritten). Never a secret.
 # Claude Code's Bash tool runs bash, not the shell you type in: fish is not supported there, and this pins it.
 CLAUDE_CODE_SHELL=$MODERN_BASH
-# Where account B's Claude settings live, for `account b` (a shell function): the folder need not exist on every machine.
+# Where account B's Claude settings live, for the shell function 'account b': the folder need not exist on every machine.
 CLAUDE_CONFIG_DIR_B=$HOME/.claude-b
 ENVEOF
   fi
