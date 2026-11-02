@@ -5,7 +5,7 @@
 # (`corpus baton`, a reading verb, cached for 60 s because Node takes half a second). On a machine without the
 # controllers, the leases or the store, those parts are simply absent.
 #
-#   A20 4m · B12+ 2h · baton B12 · heavy: B-12 records push · slots 1/4
+#   A20 4m · B12+ 2h · baton B12 · heavy: B-12 records push · lanes 1/4: 036i-fw-b-self-healing
 #
 # On a machine that runs a Docker Compose stack (the server), the line is about the stack instead: --ops prints two
 # lines (the services, then the host's figures), --ops-services and --ops-host one each, for an 80-column prompt;
@@ -59,8 +59,12 @@ wrap() {  # wrap <line>: one or more lines, each within the width
 }
 ops_line() {
   command -v docker >/dev/null 2>&1 || return 0
-  local c=${TMPDIR:-/tmp}/landingham-ops-$(id -u)
+  local c=${TMPDIR:-/tmp}/landingham-ops-$(id -u) i
   if [ ! -f "$c" ] || [ $(( now - $(mtime "$c") )) -gt 30 ]; then
+    if ! mkdir "$c.lock" 2>/dev/null; then   # another prompt module is refreshing it: wait for that, up to 10 s
+      i=0; while [ -d "$c.lock" ] && [ $i -lt 100 ]; do sleep 0.1; i=$((i+1)); done
+      [ -f "$c" ] && cat "$c"; return 0
+    fi
     python3 - > "$c.new" 2>/dev/null <<'PYEOF'
 import json, subprocess, os, time
 def run(*a):
@@ -111,6 +115,7 @@ if units and (os.path.exists('/bin/systemctl') or os.path.exists('/usr/bin/syste
 if projects: print(' \u00b7 '.join(projects)); print(' \u00b7 '.join(parts))   # no stack running here (a Mac with Docker Desktop or colima): no operations lines at all
 PYEOF
     if [ -s "$c.new" ]; then mv "$c.new" "$c"; else rm -f "$c.new" "$c"; fi
+    rmdir "$c.lock" 2>/dev/null
   fi
   [ -f "$c" ] && cat "$c"
 }
@@ -159,15 +164,22 @@ if [ -n "$tmux" ]; then
 fi
 if [ -n "$store" ] && [ -f "$store" ] && [ -n "$repo" ] && [ -d "$repo" ] && command -v node >/dev/null; then
   if [ ! -f "$cache" ] || [ $(( now - $(mtime "$cache") )) -gt 60 ]; then
-    ( cd "$repo" && node corpus/cli.mjs baton 2>/dev/null | sed -n 's/^  Holder: \(.*\) — session.*/\1/p' | head -1 > "$cache.new" )
-    if [ -s "$cache.new" ]; then mv "$cache.new" "$cache"; else rm -f "$cache.new" "$cache"; fi   # an empty answer is never cached
+    if mkdir "$cache.lock" 2>/dev/null; then
+      ( cd "$repo" && node corpus/cli.mjs baton 2>/dev/null | sed -n 's/^  Holder: \(.*\) — session.*/\1/p' | head -1 > "$cache.new" )
+      if [ -s "$cache.new" ]; then mv "$cache.new" "$cache"; else rm -f "$cache.new" "$cache"; fi   # an empty answer is never cached
+      rmdir "$cache.lock" 2>/dev/null
+    fi
   fi
   holder=$(cat "$cache" 2>/dev/null); [ -n "$holder" ] && parts+=("baton $(short "$holder")")
 fi
 heavy=$HOME/satellite/leases/heavy
 if [ -f "$heavy" ]; then label=$(sed -n 's/.*"label":"\([^"]*\)".*/\1/p' "$heavy"); [ -n "$label" ] && parts+=("heavy: $label"); fi
 slots=$HOME/satellite/leases/agent-slots
-if [ -d "$slots" ]; then held=$(ls "$slots" 2>/dev/null | wc -l | tr -d ' '); parts+=("slots $held/${PROCESS_AGENT_SLOTS:-4}"); fi
+if [ -d "$slots" ]; then
+  held=$(ls "$slots" 2>/dev/null | wc -l | tr -d ' '); lanes=''
+  for f in "$slots"/*; do [ -f "$f" ] && lanes="$lanes $(sed -n 's/.*"label":"\([^"]*\)".*/\1/p' "$f")"; done
+  [ "$held" = 0 ] && parts+=("lanes 0/${PROCESS_AGENT_SLOTS:-4}") || parts+=("lanes $held/${PROCESS_AGENT_SLOTS:-4}:${lanes}")
+fi
 o1=$(ops_services); [ -n "$o1" ] && parts+=("$o1"); o2=$(ops_host); [ -n "$o2" ] && parts+=("$o2")
 while IFS= read -r l; do [ -n "$l" ] && parts+=("$l"); done < <(remote_lines)
 line=''; [ ${#parts[@]} -gt 0 ] && line=$(join "${parts[@]}")
