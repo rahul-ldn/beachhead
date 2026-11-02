@@ -22,5 +22,8 @@ machine needs before it can carry Landingham or another project.
 carries, which every part reads and may add a line to but never rewrites; and `installed/<part>`, one line a run
 from each part, with the build it was (a digest of the sources) and how its checks went. One file for what must agree, one record per part.
 
+Afterwards, on the machine: `beachhead status`, `beachhead check`, and `beachhead update [part]` to fetch and re-run
+the current installer.
+
 Each part's `install.sh` is **built, never edited**: its sources are beside it, and `python3 build-installer.py`
 in the part's folder assembles the one file. The workflow refuses a push where a built file is stale.

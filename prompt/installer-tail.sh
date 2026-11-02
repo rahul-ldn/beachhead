@@ -40,6 +40,7 @@ step "the prompt's files"
 install_file payload_starship_toml "$HOME/.config/starship/starship.toml"
 install_file payload_landingham_status "$HOME/.local/bin/landingham-status" 755
 install_file payload_beachhead_palette "$HOME/.local/bin/beachhead-palette" 755
+install_file payload_beachhead "$HOME/.local/bin/beachhead" 755
 install_file payload_beachhead_fish "$HOME/.config/fish/conf.d/beachhead.fish"
 TMUX_BIN=$(command -v tmux 2>/dev/null || echo /opt/homebrew/bin/tmux)
 payload_tmux_conf_resolved() { payload_tmux_conf | sed -e "s|__HOME__|$HOME|g" -e "s|__TMUX__|$TMUX_BIN|g"; }
@@ -47,6 +48,7 @@ install_file payload_tmux_conf_resolved "$HOME/.tmux.conf"
 check "the starship template loads without a warning" sh -c '[ -z "$(STARSHIP_CONFIG=$HOME/.config/starship/starship.toml starship prompt --terminal-width 80 2>&1 >/dev/null | grep WARN)" ]'
 check "landingham-status runs" "$HOME/.local/bin/landingham-status" --sessions
 check "beachhead-palette answers from home" sh -c 'cd && [ -f "$("$HOME/.local/bin/beachhead-palette")" ]'
+check "the beachhead command runs" "$HOME/.local/bin/beachhead" status
 check "the tmux conf parses (on a scratch server of its own)" sh -c '"$0" -L landingham-install-check -f "$HOME/.tmux.conf" new-session -d true 2>/dev/null; "$0" -L landingham-install-check kill-server 2>/dev/null; true' "$TMUX_BIN"
 
 # ---- 3. the shared environment file: the one place for variables every shell on this machine must carry ----
@@ -247,6 +249,7 @@ fi
 if [ $DRY = 0 ]; then mkdir -p "$HOME/.config/beachhead/installed"; printf '%s build %s on %s: %s checks passed, %s failed\n' "$(date '+%Y-%m-%d %H:%M')" "$BEACHHEAD_BUILD" "$PLATFORM" "$PASS" "$FAIL" >> "$HOME/.config/beachhead/installed/prompt"; fi
 say "  done: $PASS checks passed, $FAIL failed. Open a new terminal window$( [ $PLATFORM = mac ] && [ $FONT = 1 ] && echo ', set its font to FiraCode Nerd Font Mono,') and the band is there."
 say "  the default palette: beachhead-palette --default <gruvbox|pastel|catppuccin>; a project's own: .prompt-palette.toml at its root."
+say "  later: beachhead check (is this the served build?), beachhead update (fetch and re-run), beachhead status."
 return $FAIL
 }
 

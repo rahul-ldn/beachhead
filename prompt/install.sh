@@ -28,7 +28,7 @@
 set -euo pipefail
 
 main() {
-BEACHHEAD_BUILD='f27e08ed7ea0'   # build-installer.py fills this in: a digest of its sources
+BEACHHEAD_BUILD='dee07796d576'   # build-installer.py fills this in: a digest of its sources
 STARSHIP_VERSION=v1.27.0
 STAMP=$(date +%Y%m%d-%H%M%S)
 DRY=0; PACKAGES=1; FONT=1; CHSH=1; STATUSLINE=1; PROJECT=''; DEFAULT_PALETTE=''; NOTTY=${BEACHHEAD_NOTTY:-0}
@@ -619,6 +619,42 @@ fail     = '#8C2B2B'
 LANDINGHAM_PAYLOAD_END
 }
 
+payload_beachhead() {
+cat <<'LANDINGHAM_PAYLOAD_END'
+#!/usr/bin/env bash
+# beachhead — the parts installed on this machine, from the command line.
+#
+#   beachhead status            each part's last run, from ~/.config/beachhead/installed/
+#   beachhead check [part]      is the installed build the one Pages serves? (fetches the installer's first lines only)
+#   beachhead update [part] [options…]
+#                               fetch the current installer for the part (prompt, by default) and run it; options go
+#                               through, so `beachhead update prompt --dry-run` says what would change
+#
+# The parts are fetched from BEACHHEAD_URL (the environment file may set it), by default the published repository.
+set -u
+BASE=${BEACHHEAD_URL:-https://rahul-ldn.github.io/beachhead}
+REC=$HOME/.config/beachhead/installed
+served_build() { curl -fsSL "$BASE/$1/install.sh" 2>/dev/null | sed -n "s/^BEACHHEAD_BUILD='\([^']*\)'.*/\1/p" | head -1; }
+installed_build() { [ -f "$REC/$1" ] && tail -1 "$REC/$1" | sed -n 's/.* build \([0-9a-f]*\) on .*/\1/p'; }
+case "${1:-}" in
+  status)
+    [ -d "$REC" ] || { echo "nothing recorded under $REC"; exit 0; }
+    for f in "$REC"/*; do [ -f "$f" ] && printf '%s: %s\n' "$(basename "$f")" "$(tail -1 "$f")"; done;;
+  check)
+    part=${2:-prompt}; have=$(installed_build "$part"); want=$(served_build "$part")
+    [ -n "$want" ] || { echo "$part: could not fetch $BASE/$part/install.sh" >&2; exit 2; }
+    if [ -z "$have" ]; then echo "$part: not recorded on this machine (served build $want)"; exit 1
+    elif [ "$have" = "$want" ]; then echo "$part: current ($have)"
+    else echo "$part: installed $have, served $want — beachhead update $part"; exit 1; fi;;
+  update)
+    part=${2:-prompt}; shift; [ $# -gt 0 ] && shift
+    echo "fetching $BASE/$part/install.sh"
+    curl -fsSL "$BASE/$part/install.sh" | bash -s -- "$@";;
+  *) sed -n '2,10p' "$0"; exit 64;;
+esac
+LANDINGHAM_PAYLOAD_END
+}
+
 # ---- 1. packages ----
 step "packages"
 if [ $PACKAGES = 0 ]; then say "  skipped (--no-packages)"
@@ -661,6 +697,7 @@ step "the prompt's files"
 install_file payload_starship_toml "$HOME/.config/starship/starship.toml"
 install_file payload_landingham_status "$HOME/.local/bin/landingham-status" 755
 install_file payload_beachhead_palette "$HOME/.local/bin/beachhead-palette" 755
+install_file payload_beachhead "$HOME/.local/bin/beachhead" 755
 install_file payload_beachhead_fish "$HOME/.config/fish/conf.d/beachhead.fish"
 TMUX_BIN=$(command -v tmux 2>/dev/null || echo /opt/homebrew/bin/tmux)
 payload_tmux_conf_resolved() { payload_tmux_conf | sed -e "s|__HOME__|$HOME|g" -e "s|__TMUX__|$TMUX_BIN|g"; }
@@ -668,6 +705,7 @@ install_file payload_tmux_conf_resolved "$HOME/.tmux.conf"
 check "the starship template loads without a warning" sh -c '[ -z "$(STARSHIP_CONFIG=$HOME/.config/starship/starship.toml starship prompt --terminal-width 80 2>&1 >/dev/null | grep WARN)" ]'
 check "landingham-status runs" "$HOME/.local/bin/landingham-status" --sessions
 check "beachhead-palette answers from home" sh -c 'cd && [ -f "$("$HOME/.local/bin/beachhead-palette")" ]'
+check "the beachhead command runs" "$HOME/.local/bin/beachhead" status
 check "the tmux conf parses (on a scratch server of its own)" sh -c '"$0" -L landingham-install-check -f "$HOME/.tmux.conf" new-session -d true 2>/dev/null; "$0" -L landingham-install-check kill-server 2>/dev/null; true' "$TMUX_BIN"
 
 # ---- 3. the shared environment file: the one place for variables every shell on this machine must carry ----
@@ -868,6 +906,7 @@ fi
 if [ $DRY = 0 ]; then mkdir -p "$HOME/.config/beachhead/installed"; printf '%s build %s on %s: %s checks passed, %s failed\n' "$(date '+%Y-%m-%d %H:%M')" "$BEACHHEAD_BUILD" "$PLATFORM" "$PASS" "$FAIL" >> "$HOME/.config/beachhead/installed/prompt"; fi
 say "  done: $PASS checks passed, $FAIL failed. Open a new terminal window$( [ $PLATFORM = mac ] && [ $FONT = 1 ] && echo ', set its font to FiraCode Nerd Font Mono,') and the band is there."
 say "  the default palette: beachhead-palette --default <gruvbox|pastel|catppuccin>; a project's own: .prompt-palette.toml at its root."
+say "  later: beachhead check (is this the served build?), beachhead update (fetch and re-run), beachhead status."
 return $FAIL
 }
 

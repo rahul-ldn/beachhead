@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# beachhead — the parts installed on this machine, from the command line.
+#
+#   beachhead status            each part's last run, from ~/.config/beachhead/installed/
+#   beachhead check [part]      is the installed build the one Pages serves? (fetches the installer's first lines only)
+#   beachhead update [part] [options…]
+#                               fetch the current installer for the part (prompt, by default) and run it; options go
+#                               through, so `beachhead update prompt --dry-run` says what would change
+#
+# The parts are fetched from BEACHHEAD_URL (the environment file may set it), by default the published repository.
+set -u
+BASE=${BEACHHEAD_URL:-https://rahul-ldn.github.io/beachhead}
+REC=$HOME/.config/beachhead/installed
+served_build() { curl -fsSL "$BASE/$1/install.sh" 2>/dev/null | sed -n "s/^BEACHHEAD_BUILD='\([^']*\)'.*/\1/p" | head -1; }
+installed_build() { [ -f "$REC/$1" ] && tail -1 "$REC/$1" | sed -n 's/.* build \([0-9a-f]*\) on .*/\1/p'; }
+case "${1:-}" in
+  status)
+    [ -d "$REC" ] || { echo "nothing recorded under $REC"; exit 0; }
+    for f in "$REC"/*; do [ -f "$f" ] && printf '%s: %s\n' "$(basename "$f")" "$(tail -1 "$f")"; done;;
+  check)
+    part=${2:-prompt}; have=$(installed_build "$part"); want=$(served_build "$part")
+    [ -n "$want" ] || { echo "$part: could not fetch $BASE/$part/install.sh" >&2; exit 2; }
+    if [ -z "$have" ]; then echo "$part: not recorded on this machine (served build $want)"; exit 1
+    elif [ "$have" = "$want" ]; then echo "$part: current ($have)"
+    else echo "$part: installed $have, served $want — beachhead update $part"; exit 1; fi;;
+  update)
+    part=${2:-prompt}; shift; [ $# -gt 0 ] && shift
+    echo "fetching $BASE/$part/install.sh"
+    curl -fsSL "$BASE/$part/install.sh" | bash -s -- "$@";;
+  *) sed -n '2,10p' "$0"; exit 64;;
+esac

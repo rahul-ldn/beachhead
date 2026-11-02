@@ -1,7 +1,7 @@
 # Assembles install.sh: the installer's logic with every payload file embedded, so one file is the
 # whole install on any machine. Run it after changing anything in payload/.
 import os
-files=['starship.toml','landingham-status','beachhead-palette','beachhead.fish','tmux.conf','prompt-palette.toml']
+files=['starship.toml','landingham-status','beachhead-palette','beachhead.fish','tmux.conf','prompt-palette.toml','beachhead']
 import hashlib
 digest=hashlib.sha256(b''.join(open(f,'rb').read() for f in ['installer-head.sh','installer-tail.sh']+['payload/'+f for f in files])).hexdigest()[:12]
 build=digest   # the build is named by a digest of its sources, so a rebuild anywhere gives the same file
