@@ -95,7 +95,7 @@ style   = 'fg:lobby'
 shell   = ['/bin/sh']
 when    = 'test -z "$TMUX" && command -v docker >/dev/null 2>&1 && [ -n "$($HOME/.local/bin/landingham-status --ops)" ]'
 command = "$HOME/.local/bin/landingham-status --ops"
-format  = "[󰡨  $output]($style)\n"
+format  = "[  $output]($style)\n"
 style   = 'fg:lobby'
 
 # ---- the machine: the head of the band, with its own icon ----
@@ -104,21 +104,21 @@ style   = 'fg:lobby'
 shell   = ['/bin/sh']
 when    = 'test "$(hostname -s)" = Tunhithe'
 command = 'echo Tunhithe'
-format  = '[󰍹 $output ]($style)[](fg:head bg:path)'
+format  = '[ $output ]($style)[](fg:head bg:path)'
 style   = 'bold fg:headtext bg:head'
 
 [custom.carrack]
 shell   = ['/bin/sh']
 when    = 'test "$(hostname -s)" = Carrack'
 command = 'echo Carrack'
-format  = '[󰌢 $output ]($style)[](fg:head bg:path)'
+format  = '[ $output ]($style)[](fg:head bg:path)'
 style   = 'bold fg:headtext bg:head'
 
 [custom.elsewhere]
 shell   = ['/bin/sh']
 when    = 'case "$(hostname -s)" in Tunhithe|Carrack) exit 1;; esac'
 command = 'hostname -s'
-format  = '[󰒍 $output ]($style)[](fg:head bg:path)'
+format  = '[ $output ]($style)[](fg:head bg:path)'
 style   = 'bold fg:headtext bg:head'
 
 # ---- the path: one cell, the repository's root in bold, folders as icons by substitution ----
@@ -127,7 +127,7 @@ style   = 'bold fg:headtext bg:head'
 [directory]
 format                 = '[  $path ]($style)[$read_only]($read_only_style)'
 style                  = 'fg:pathtext bg:path'
-read_only              = '󰌾 '
+read_only              = ' '
 read_only_style        = 'fg:pathtext bg:path'
 truncation_length      = 3
 truncate_to_repo       = false
@@ -137,11 +137,11 @@ repo_root_format       = '[  $before_root_path](fg:pathtext bg:path)[$repo_root]
 
 [directory.substitutions]
 '~/Claude/Projects/CRM' = ' CRM'
-'Documents' = '󰈙 '
+'Documents' = ' '
 'Downloads' = ' '
-'Music'     = '󰝚 '
+'Music'     = ' '
 'Pictures'  = ' '
-'Developer' = '󰲋 '
+'Developer' = ' '
 
 # ---- git: one cell, entered from the path ----
 
@@ -229,17 +229,17 @@ style    = 'fg:#999999'
 [custom.account_a]
 shell   = ['/bin/sh']
 when    = 'command -v claude >/dev/null 2>&1 && test -z "${CLAUDE_CONFIG_DIR:-}"'
-format  = '[](fg:acct)[󱚝 A]($style)[](fg:acct) '
+format  = '[](fg:acct)[✳ A]($style)[](fg:acct) '
 style   = 'bold fg:accttext bg:acct'
 
 [custom.account_b]
 shell   = ['/bin/sh']
 when    = 'command -v claude >/dev/null 2>&1 && case "${CLAUDE_CONFIG_DIR:-}" in *claude-b*) exit 0;; *) exit 1;; esac'
-format  = '[](fg:acctb)[󱚝 B]($style)[](fg:acctb) '
+format  = '[](fg:acctb)[✳ B]($style)[](fg:acctb) '
 style   = 'bold fg:accttext bg:acctb'
 
 [time]
 disabled    = false
-format      = '[](fg:time)[󰥔 $time]($style)[](fg:time)'
+format      = '[](fg:time)[ $time]($style)[](fg:time)'
 time_format = '%H:%M'
 style       = 'fg:timetext bg:time'
