@@ -28,7 +28,7 @@
 set -euo pipefail
 
 main() {
-BEACHHEAD_BUILD='c3cfbb99b1eb'   # build-installer.py fills this in: a digest of its sources
+BEACHHEAD_BUILD='f98fff8222f3'   # build-installer.py fills this in: a digest of its sources
 STARSHIP_VERSION=v1.27.0
 STAMP=$(date +%Y%m%d-%H%M%S)
 DRY=0; PACKAGES=1; FONT=1; CHSH=1; STATUSLINE=1; PROJECT=''; DEFAULT_PALETTE=''; NOTTY=${BEACHHEAD_NOTTY:-0}
@@ -405,7 +405,7 @@ short() {  # "✳ CRM Controller Tunhithe-A 20" -> A20
 join() { local IFS='|'; local out="$*"; echo "${out//|/ · }"; }
 # wrap: the prompt's lines wrap at the terminal's width on the dot separators, continuation lines indented under the
 # icon; the tmux bar never wraps. The width is the terminal's (COLUMNS, else the tty), capped at 120, minus the icon's room.
-width() { local c=${COLUMNS:-}; [ -n "$c" ] || c=$(stty size </dev/tty 2>/dev/null | cut -d' ' -f2); [ -n "$c" ] && [ "$c" -gt 20 ] 2>/dev/null || c=80; [ "$c" -gt 120 ] && c=120; echo $(( c - 4 )); }
+width() { local c=${COLUMNS:-}; [ -n "$c" ] || c=$( (stty size </dev/tty) 2>/dev/null | cut -d' ' -f2); [ -n "$c" ] && [ "$c" -gt 20 ] 2>/dev/null || c=80; [ "$c" -gt 120 ] && c=120; echo $(( c - 4 )); }
 wrap() {  # wrap <line>: one or more lines, each within the width
   local w; w=$(width); local line=$1 out='' cur='' piece
   while [ -n "$line" ]; do
@@ -449,13 +449,16 @@ for proj in rows(run('docker','compose','ls','--format','json')):
         marks.append(name+m)
     projects.append(proj.get('Name','stack')+': '+' '.join(marks))
 st=os.environ.get('LANDINGHAM_BACKUP_STATE','')
-if st and os.path.isfile(os.path.join(st,'last-run')):
+if st:
     try:
-        f=open(os.path.join(st,'last-run')).read().split()   # <stamp> <size> off-site|local-only
+        lr=os.path.join(st,'last-run')
+        try: text=open(lr).read()
+        except PermissionError: text=run('sudo','-n','cat',lr)   # the backup runs as root; the admin user's sudo asks nothing
+        f=text.split()   # <stamp> <size> off-site|local-only
         stamp=f[0]; age=time.time()-time.mktime(time.strptime(stamp[:19],'%Y-%m-%dT%H:%M:%S'))
         hhmm=stamp[11:16]; warn=' \u2717' if age>26*3600 or (len(f)>2 and f[2]!='off-site') else ''
         parts.append('backup '+hhmm+' '+' '.join(f[1:3])+warn)
-    except Exception: parts.append('backup ?')
+    except Exception: parts.append('backup ?' if os.path.isdir(st) else 'backup: no state folder')
 try:
     stv=os.statvfs('/'); used=100-int(stv.f_bavail*100/stv.f_blocks); parts.append('disk %d%%%s'%(used,' \u2717' if used>=85 else ''))
 except Exception: pass
