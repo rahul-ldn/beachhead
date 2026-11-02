@@ -28,7 +28,7 @@
 set -euo pipefail
 
 main() {
-BEACHHEAD_BUILD='6a4d9e852cfb'   # build-installer.py fills this in: a digest of its sources
+BEACHHEAD_BUILD='5fe83627c06d'   # build-installer.py fills this in: a digest of its sources
 STARSHIP_VERSION=v1.27.0
 STAMP=$(date +%Y%m%d-%H%M%S)
 DRY=0; PACKAGES=1; FONT=1; CHSH=1; STATUSLINE=1; PROJECT=''; DEFAULT_PALETTE=''; NOTTY=${BEACHHEAD_NOTTY:-0}
@@ -448,7 +448,7 @@ if units and (os.path.exists('/bin/systemctl') or os.path.exists('/usr/bin/syste
     for u in units:
         a=run('systemctl','is-active',u).strip(); marks.append(u.replace('.service','').replace('.timer','')+('\u2713' if a=='active' else '\u2717'))
     parts.append(' '.join(marks))
-print(' \u00b7 '.join(projects)); print(' \u00b7 '.join(parts))
+if projects: print(' \u00b7 '.join(projects)); print(' \u00b7 '.join(parts))   # no stack running here (a Mac with Docker Desktop or colima): no operations lines at all
 PYEOF
     if [ -s "$c.new" ]; then mv "$c.new" "$c"; else rm -f "$c.new" "$c"; fi
   fi
