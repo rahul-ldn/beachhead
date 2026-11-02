@@ -28,7 +28,7 @@
 set -euo pipefail
 
 main() {
-BEACHHEAD_BUILD='ca9e56b86eb9'   # build-installer.py fills this in: a digest of its sources
+BEACHHEAD_BUILD='6a4d9e852cfb'   # build-installer.py fills this in: a digest of its sources
 STARSHIP_VERSION=v1.27.0
 STAMP=$(date +%Y%m%d-%H%M%S)
 DRY=0; PACKAGES=1; FONT=1; CHSH=1; STATUSLINE=1; PROJECT=''; DEFAULT_PALETTE=''; NOTTY=${BEACHHEAD_NOTTY:-0}
@@ -384,6 +384,19 @@ short() {  # "✳ CRM Controller Tunhithe-A 20" -> A20
   local l=$1; l=${l#✳ }; l=${l#CRM }; l=${l#Controller }; l=${l#Tunhithe-}; l=${l#Carrack-}; echo "${l// /}"
 }
 join() { local IFS='|'; local out="$*"; echo "${out//|/ · }"; }
+# wrap: the prompt's lines wrap at the terminal's width on the dot separators, continuation lines indented under the
+# icon; the tmux bar never wraps. The width is the terminal's (COLUMNS, else the tty), capped at 120, minus the icon's room.
+width() { local c=${COLUMNS:-}; [ -n "$c" ] || c=$(stty size </dev/tty 2>/dev/null | cut -d' ' -f2); [ -n "$c" ] && [ "$c" -gt 20 ] 2>/dev/null || c=80; [ "$c" -gt 120 ] && c=120; echo $(( c - 4 )); }
+wrap() {  # wrap <line>: one or more lines, each within the width
+  local w; w=$(width); local line=$1 out='' cur='' piece
+  while [ -n "$line" ]; do
+    piece=${line%% · *}; [ "$piece" = "$line" ] && line='' || line=${line#* · }
+    if [ -z "$cur" ]; then cur=$piece
+    elif [ $(( ${#cur} + 3 + ${#piece} )) -le "$w" ]; then cur="$cur · $piece"
+    else out="$out$cur"$'\n'"   "; cur=$piece; fi
+  done
+  printf '%s%s\n' "$out" "$cur"
+}
 ops_line() {
   command -v docker >/dev/null 2>&1 || return 0
   local c=${TMPDIR:-/tmp}/landingham-ops-$(id -u)
@@ -445,9 +458,9 @@ ops_services() { ops_line | sed -n 1p; }
 ops_host()     { ops_line | sed -n 2p; }
 
 case "${1:-}" in
-  --ops) ops_line | sed '/^$/d'; exit 0;;            # two lines: the services, then the host's figures
-  --ops-services) ops_services; exit 0;;
-  --ops-host) ops_host; exit 0;;
+  --ops) o1=$(ops_services); [ -n "$o1" ] && wrap "$o1"; o2=$(ops_host); [ -n "$o2" ] && wrap "$o2"; exit 0;;   # the services, then the host's figures, each wrapped
+  --ops-services) o=$(ops_services); [ -n "$o" ] && wrap "$o"; exit 0;;
+  --ops-host) o=$(ops_host); [ -n "$o" ] && wrap "$o"; exit 0;;
 esac
 if [ "${1:-}" = --sessions ]; then
   # The lobby: every tmux session you could join, who is in it (by the pane title Claude Code sets), and its last activity.
@@ -458,7 +471,7 @@ if [ "${1:-}" = --sessions ]; then
     mark=''; [ "${att:-0}" -gt 0 ] && mark='+'
     rooms+=("${s}${mark}=${who}$(ago "$act")")
   done < <("$tmux" list-panes -a -F $'#{session_name}\t#{session_activity}\t#{session_attached}\t#{pane_title}' 2>/dev/null)
-  [ ${#rooms[@]} -gt 0 ] && join "${rooms[@]}"
+  [ ${#rooms[@]} -gt 0 ] && wrap "$(join "${rooms[@]}")"
   exit 0
 fi
 
